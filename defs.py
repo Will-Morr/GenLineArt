@@ -1,0 +1,22 @@
+SKIP_TO_NTH = 5
+SUBDIV_SIZE = 20
+SUBDIV_RAD = 3
+
+# Placement defs
+MAX_VAL = 250
+MIN_DIST = 10
+SCALE_FACT = 30.0
+
+# Enableable stuff
+DO_IMAGE_LINEARIZATION = False
+DARKEN_NOT_WHITE = True
+DARKEN_EDGES = False
+SMOOTH_KERNEL_RAD = 2
+EDGE_KERNEL_RAD = 12
+
+# Line placement defs
+MAX_LINE_LEN = 50
+
+MAX_DIMS = [1000, 1500]
+# MAX_DIMS = [500, 400]
+# MAX_DIMS = [100, 150]
