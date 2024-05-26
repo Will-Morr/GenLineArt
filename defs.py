@@ -4,7 +4,7 @@ SUBDIV_RAD = 1
 
 # Placement defs
 MAX_VAL = 250
-MIN_DIST =  5
+MIN_DIST =  12
 SCALE_FACT = 25.0
 
 # Enableable stuff
@@ -17,6 +17,7 @@ EDGE_DARKENING_RATIO = 0.4
 
 # Line placement defs
 MAX_LINE_LEN = 30
+CIRCLE_RAD = 2
 
 MAX_DIMS = [1000, 1500]
 # MAX_DIMS = [500, 400]

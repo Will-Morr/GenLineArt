@@ -143,9 +143,7 @@ if __name__ == '__main__':
     points = Image.new("RGB", inImg.size, "white")
     draw = ImageDraw.Draw(points)
     for pt in iterateOverFullMap(pointMap):
-        # draw.point(pt, fill="black")
-        drawSize = 3
-        draw.ellipse([(pt[1]-drawSize, pt[0]-drawSize), (pt[1]+drawSize, pt[0]+drawSize)], fill="black", )
+        draw.ellipse([(pt[1]-CIRCLE_RAD, pt[0]-CIRCLE_RAD), (pt[1]+CIRCLE_RAD, pt[0]+CIRCLE_RAD)], fill="black", )
     points.save(filePath + '/out_points.jpg')
     # points.show()
 
@@ -173,11 +171,20 @@ if __name__ == '__main__':
     # Export Design
     import ezdxf
 
+    # Export lines
     doc = ezdxf.new()
     msp = doc.modelspace()
     for fooLine in lineData:
         for idx in range(len(fooLine)-1):
             msp.add_line((fooLine[idx][1], -fooLine[idx][0]), (fooLine[idx+1][1], -fooLine[idx+1][0]), dxfattribs={"color": 2})
 
-    doc.saveas(filePath+'/output.dxf')
+    doc.saveas(filePath+'/out_lines.dxf')
     doc.saveas('proc/currLineArt.dxf')
+
+
+    doc = ezdxf.new()
+    msp = doc.modelspace()
+    for pt in iterateOverFullMap(pointMap):
+        msp.add_circle((pt[1], -pt[0]), CIRCLE_RAD)
+
+    doc.saveas(filePath+'/out_points.dxf')
