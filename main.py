@@ -42,9 +42,9 @@ if __name__ == '__main__':
 
     # Plot hist of input image values if requested
     plt.hist(rawImg.flatten(), bins=256)
-    plt.axvline(MAX_VAL, color='orange')
-    plt.title("Distribution of color in image")
-    plt.savefig(filePath + '/pixDistribution.jpg')
+    # plt.axvline(MAX_VAL, color='orange')
+    plt.title("Distribution of shade in raw image")
+    plt.savefig(filePath + '/plt_pixDistribution.jpg')
 
     # Linearize image
     if DO_IMAGE_LINEARIZATION:
@@ -59,14 +59,31 @@ if __name__ == '__main__':
     plt.cla()
     plt.hist(np.array(stdev).flatten(), bins=50)
     plt.title("Standard deviation of RGB of each pixel")
-    plt.savefig(filePath + '/pixStd.jpg')
-    saveArbitraryImage(stdev, filePath+'/stdev.jpg')
+    plt.savefig(filePath + '/plt_pixStd.jpg')
 
     # Set all stdevs < 5 to 5
     STD_TRUNC_VAL = 10
     stdev[stdev < STD_TRUNC_VAL] = STD_TRUNC_VAL
     stdev /= STD_TRUNC_VAL
 
+    saveArbitraryImage(stdev, filePath+'/img_stdev.jpg')
+
+    # Actually adjust for whiteness
+    pixelWhiteness /= stdev
+    backgroundVal = np.min(pixelWhiteness[:3, :])
+    rawImg[pixelWhiteness > backgroundVal] = 255
+
+    # Plot pixel whiteness
+    pixelWhiteness[pixelWhiteness > backgroundVal] *= 3
+    saveArbitraryImage(pixelWhiteness, filePath+'/img_whiteness.jpg')
+
+    adjustImg = np.array(rawImg, dtype=np.double)
+    adjustImg /= np.max(adjustImg)
+
+    if DARKEN_NOT_WHITE:
+        print(np.max((stdev + STD_TRUNC_VAL)/150))
+        adjustImg += (stdev + STD_TRUNC_VAL)/300
+        
     if DARKEN_EDGES:
         print("Handling edges")
         smoothKernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(SMOOTH_KERNEL_RAD*2+1,SMOOTH_KERNEL_RAD*2+1))
@@ -86,36 +103,34 @@ if __name__ == '__main__':
         plt.cla()
         plt.hist(np.sum(colDiffs, axis=2).flatten(), bins=50)
         plt.title("Absolute sum of RGB Difference in each axis")
-        plt.savefig(filePath + '/edgeDist.jpg')
+        plt.savefig(filePath + '/plt_edgeDist.jpg')
 
         colDiffs[colDiffs > 0] = 0
 
-        colDiffs = np.sum(np.abs(colDiffs), axis=2)
+        colDiffs = np.max(np.abs(colDiffs), axis=2)
         colDiffs[colDiffs > 100] = 100
-        colDiffs /= 100
+        saveArbitraryImage(colDiffs, filePath+'/img_edges.jpg', mode='L')
         
-        # saveArbitraryImage(colDiffs, filePath+'/edges.jpg', mode='RGB')
-        saveArbitraryImage(colDiffs, filePath+'/edges.jpg', mode='L')
-        # exit()
-
-
-    if DARKEN_NOT_WHITE:
-        tmpImg = np.array(rawImg, dtype=np.int16) - (stdev + STD_TRUNC_VAL)*2
-        tmpImg[tmpImg < 0] = 0
-        tmpImg[tmpImg > 255] = 255
-        rawImg = np.array(tmpImg, dtype=np.uint8)
-
-    # Actually adjust for whiteness
-    pixelWhiteness /= stdev
-    backgroundVal = np.min(pixelWhiteness[:3, :])
-    rawImg[pixelWhiteness > backgroundVal] = 255
-
-    # Plot pixel whiteness
-    pixelWhiteness[pixelWhiteness > backgroundVal] *= 3
-    saveArbitraryImage(pixelWhiteness, filePath+'/whiteness.jpg')
+        # adjustImg -= colDiffs/500
+        # adjustImg = np.min([adjustImg, 1.0-colDiffs/150], axis=0)
+        adjustImg -= colDiffs/200
+        adjustImg[adjustImg < -0.0] = -0.0
 
     # Save greyscale image
-    Image.fromarray(rawImg, mode='L').save(filePath + '/grey.jpg')
+    # saveArbitraryImage(adjustImg, filePath+'/img_tmp.jpg', mode='L')
+    whitePts = np.where(rawImg == 255)
+    adjustImg -= np.min(adjustImg)
+    adjustImg *= 255/np.max(adjustImg)
+    rawImg = np.array(adjustImg, dtype=np.uint8)
+    rawImg[whitePts] = 255
+    Image.fromarray(rawImg, mode='L').save(filePath + '/img_grey.jpg')
+
+    # Plot image edge selection distribution
+    plt.cla()
+    shadePts = rawImg.flatten()
+    plt.hist(shadePts[shadePts < 255], bins=256)
+    plt.title("Distribution of shade in final greyscale image")
+    plt.savefig(filePath + '/plt_shadeDist.jpg')
 
     # Convert to pts
     pointMap = convertToPoints(rawImg, skipToEveryNth=SKIP_TO_NTH, subdivSize=SUBDIV_SIZE, subDivRad=SUBDIV_RAD, maxVal=MAX_VAL, minDist=MIN_DIST, scaleFact=SCALE_FACT)
@@ -128,8 +143,8 @@ if __name__ == '__main__':
     for pt in iterateOverFullMap(pointMap):
         # draw.point(pt, fill="black")
         drawSize = 3
-        draw.ellipse([(pt[1]-drawSize, pt[0]-drawSize), (pt[1]+drawSize, pt[0]+drawSize)], fill="black")
-    points.save(filePath + '/points.jpg')
+        draw.ellipse([(pt[1]-drawSize, pt[0]-drawSize), (pt[1]+drawSize, pt[0]+drawSize)], fill="black", )
+    points.save(filePath + '/out_points.jpg')
     # points.show()
 
     # Generate lines
@@ -145,6 +160,6 @@ if __name__ == '__main__':
         # # draw.point(pt, fill="black")
         # drawSize = 3
         # draw.ellipse([(pt[1]-drawSize, pt[0]-drawSize), (pt[1]+drawSize, pt[0]+drawSize)], fill="black")
-    lines.save(filePath + '/lines.jpg')
+    lines.save(filePath + '/out_lines.jpg')
 
     
