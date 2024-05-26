@@ -113,7 +113,7 @@ if __name__ == '__main__':
         
         # adjustImg -= colDiffs/500
         # adjustImg = np.min([adjustImg, 1.0-colDiffs/150], axis=0)
-        adjustImg -= colDiffs/200
+        adjustImg -= EDGE_DARKENING_RATIO*colDiffs/100
         adjustImg[adjustImg < -0.0] = -0.0
 
     # Save greyscale image
@@ -135,6 +135,8 @@ if __name__ == '__main__':
     # Convert to pts
     pointMap = convertToPoints(rawImg, skipToEveryNth=SKIP_TO_NTH, subdivSize=SUBDIV_SIZE, subDivRad=SUBDIV_RAD, maxVal=MAX_VAL, minDist=MIN_DIST, scaleFact=SCALE_FACT)
 
+    print(len(pointMap))
+    print(len(pointMap[0]))
     # Connect lines
 
     # Display line output
@@ -148,7 +150,8 @@ if __name__ == '__main__':
     # points.show()
 
     # Generate lines
-    lineData = pointsToLines(pointMap, subdivSize=SUBDIV_SIZE, subDivRad=SUBDIV_RAD*2, maxLineLen=MAX_LINE_LEN)
+    lineData = connectPoints(pointMap, subdivSize=SUBDIV_SIZE, subDivRad=SUBDIV_RAD, maxLineLen=MAX_LINE_LEN)
+    # lineData = pointsToLines(pointMap, subDivRad=SUBDIV_RAD, maxLineLen=MAX_LINE_LEN)
     print(len(lineData))
 
     # Plot lines
@@ -162,4 +165,19 @@ if __name__ == '__main__':
         # draw.ellipse([(pt[1]-drawSize, pt[0]-drawSize), (pt[1]+drawSize, pt[0]+drawSize)], fill="black")
     lines.save(filePath + '/out_lines.jpg')
 
-    
+    print(f"pointMap:{len(pointMap)}")
+    print(f"lineData:{len(lineData)}")
+
+
+
+    # Export Design
+    import ezdxf
+
+    doc = ezdxf.new()
+    msp = doc.modelspace()
+    for fooLine in lineData:
+        for idx in range(len(fooLine)-1):
+            msp.add_line((fooLine[idx][1], -fooLine[idx][0]), (fooLine[idx+1][1], -fooLine[idx+1][0]), dxfattribs={"color": 2})
+
+    doc.saveas(filePath+'/output.dxf')
+    doc.saveas('proc/currLineArt.dxf')

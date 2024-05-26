@@ -64,11 +64,13 @@ def subDivMapIterator(map, pos, rad, includeIdx=False):
                 for foo in map[xx][yy]:
                     yield foo
 
-def iterateOverFullMap(map):
+def iterateOverFullMap(map, destroy=False):
     for xSet in map:
         for ySet in xSet:
             for fooObj in ySet:
                 yield fooObj
+                if destroy:
+                    ySet.remove(fooObj)
     
 # Convert RGB image to points
 def convertToPoints(imgArr, skipToEveryNth = 10, subdivSize = 50, subDivRad = 1, maxVal=200, minDist=10, scaleFact=4.0):
@@ -77,29 +79,40 @@ def convertToPoints(imgArr, skipToEveryNth = 10, subdivSize = 50, subDivRad = 1,
 
     pointMap = initRawSubdivMap(imgArr.shape, subdivSize)
     
-    for xx in range(0, iW, skipToEveryNth):
-        for yy in range(0, iH, skipToEveryNth):
-            val = imgArr[xx, yy]
+    pixTestList = np.meshgrid(np.arange(0, iW, skipToEveryNth), np.arange(0, iH, skipToEveryNth))
+    pixTestList = np.array([foo.flatten() for foo in pixTestList])
+    valList = imgArr[*pixTestList]
+    print(pixTestList.shape)
+    print(f"valList:{valList}")
 
-            if val > maxVal:
-                continue
+    sortList = np.argsort(valList)
+    print(f"sortList:{sortList}")
+    valList = valList[sortList]
+    pixTestList = pixTestList[:, sortList]
+    print(f"pixTestList:{pixTestList}")
 
-            doPlace = True
-            xMapInd = int(xx/subdivSize)
-            yMapInd = int(yy/subdivSize)
-            for fooPt in subDivMapIterator(pointMap, (xMapInd, yMapInd), subDivRad):
-                dist = magnitude([fooPt[0] - xx, fooPt[1] - yy])
+    for xx, yy in np.swapaxes(pixTestList, 0, 1):
+        val = imgArr[xx, yy]
 
-                if dist < scaleFact * float(val)/maxVal + minDist:
-                    doPlace = False
-                    break
+        if val > maxVal:
+            continue
 
-            if doPlace:
-                pointMap[xMapInd][yMapInd].append([xx, yy])
-                print(xx, ' ', yy)
+        doPlace = True
+        xMapInd = int(xx/subdivSize)
+        yMapInd = int(yy/subdivSize)
+        for fooPt in subDivMapIterator(pointMap, (xMapInd, yMapInd), subDivRad):
+            dist = magnitude([fooPt[0] - xx, fooPt[1] - yy])
+
+            if dist < scaleFact * float(val)/maxVal + minDist:
+                doPlace = False
+                break
+
+        if doPlace:
+            pointMap[xMapInd][yMapInd].append([xx, yy])
+            print(val, ' ', xx, ' ', yy)
     return(pointMap)
 
-def pointsToLines(inputPointMap, subdivSize = 50, subDivRad = 1, maxLineLen = 50):
+def pointsToLines(inputPointMap, subDivRad = 1, maxLineLen = 50):
     pointMap = deepcopy(inputPointMap)
 
     outLines = []
@@ -142,4 +155,30 @@ def pointsToLines(inputPointMap, subdivSize = 50, subDivRad = 1, maxLineLen = 50
                         if len(outLines[-1]) <= 1:
                             outLines.pop(-1)
                         break
+    return outLines
+
+def connectPoints(inputPointMap, subdivSize=50, subDivRad = 1, maxLineLen = 50):
+    pointMap = deepcopy(inputPointMap)
+
+    outLines = []
+    for currPt in iterateOverFullMap(pointMap, destroy=True):
+        xMapInd = int(currPt[0]/subdivSize)
+        yMapInd = int(currPt[1]/subdivSize)
+    
+        minDist = maxLineLen
+        bestPt = None
+
+        for cmpPt, cmpIdx in subDivMapIterator(pointMap, (xMapInd, yMapInd), subDivRad, includeIdx=True):
+            if currPt == cmpPt: 
+                continue
+            dist = magnitude([currPt[0] - cmpPt[0], currPt[1] - cmpPt[1]])
+            if dist < minDist:
+                print(dist)
+                minDist = dist
+                bestPt = cmpPt
+
+        if bestPt != None:
+            # if [currPt, bestPt] not in outLines:
+            outLines.append([currPt, bestPt])
+
     return outLines
