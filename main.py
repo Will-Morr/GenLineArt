@@ -53,16 +53,19 @@ if __name__ == '__main__':
     # Identify white background
     pixelWhiteness = np.array(rawImg, dtype=np.double)
     colPix = np.array(inImg)
-    stdev = np.std(colPix, axis=2)
+    if STD_IGNORE_BLUE:
+        stdev = np.std(colPix[:, :, :2], axis=2)
+    else:
+        stdev = np.std(colPix, axis=2)
+    
     
     # Plot image STDev distribution
     plt.cla()
     plt.hist(np.array(stdev).flatten(), bins=50)
-    plt.title("Standard deviation of RGB of each pixel")
+    plt.title("Standard deviation of RGB of each pixel")    
     plt.savefig(filePath + '/plt_pixStd.jpg')
 
     # Set all stdevs < 5 to 5
-    STD_TRUNC_VAL = 10
     stdev[stdev < STD_TRUNC_VAL] = STD_TRUNC_VAL
     stdev /= STD_TRUNC_VAL
 
@@ -70,11 +73,11 @@ if __name__ == '__main__':
 
     # Actually adjust for whiteness
     pixelWhiteness /= stdev
-    backgroundVal = np.min(pixelWhiteness[:3, :])
+    backgroundVal = np.min(pixelWhiteness[:2, :])
     rawImg[pixelWhiteness > backgroundVal] = 255
 
     # Plot pixel whiteness
-    pixelWhiteness[pixelWhiteness > backgroundVal] *= 3
+    pixelWhiteness[pixelWhiteness > backgroundVal] *= 4
     saveArbitraryImage(pixelWhiteness, filePath+'/img_whiteness.jpg')
 
     adjustImg = np.array(rawImg, dtype=np.double)
@@ -162,6 +165,7 @@ if __name__ == '__main__':
         # drawSize = 3
         # draw.ellipse([(pt[1]-drawSize, pt[0]-drawSize), (pt[1]+drawSize, pt[0]+drawSize)], fill="black")
     lines.save(filePath + '/out_lines.jpg')
+    lines.show()
 
     print(f"pointMap:{len(pointMap)}")
     print(f"lineData:{len(lineData)}")
@@ -176,7 +180,7 @@ if __name__ == '__main__':
     msp = doc.modelspace()
     for fooLine in lineData:
         for idx in range(len(fooLine)-1):
-            msp.add_line((fooLine[idx][1], -fooLine[idx][0]), (fooLine[idx+1][1], -fooLine[idx+1][0]), dxfattribs={"color": 2})
+            msp.add_line((fooLine[idx][1]*MM_PER_PIX, -fooLine[idx][0]*MM_PER_PIX), (fooLine[idx+1][1]*MM_PER_PIX, -fooLine[idx+1][0]*MM_PER_PIX), dxfattribs={"color": 2})
 
     doc.saveas(filePath+'/out_lines.dxf')
     doc.saveas('proc/currLineArt.dxf')
@@ -185,6 +189,7 @@ if __name__ == '__main__':
     doc = ezdxf.new()
     msp = doc.modelspace()
     for pt in iterateOverFullMap(pointMap):
-        msp.add_circle((pt[1], -pt[0]), CIRCLE_RAD)
+        msp.add_circle((pt[1]*MM_PER_PIX, -pt[0]*MM_PER_PIX), CIRCLE_RAD)
 
     doc.saveas(filePath+'/out_points.dxf')
+    doc.saveas('proc/currCircleArt.dxf')
