@@ -9,6 +9,7 @@ from copy import deepcopy
 from PIL import Image, ImageDraw
 import cv2
 import matplotlib.pyplot as plt 
+import ezdxf
 
 from funcs import *
 from defs import *
@@ -39,6 +40,7 @@ if __name__ == '__main__':
 
     # Load array of raw pixels
     rawImg = np.array(inImg.convert('L'))
+    saveArbitraryImage(rawImg, filePath+'/img_rawGrayScale.jpg')
 
     # Plot hist of input image values if requested
     plt.hist(rawImg.flatten(), bins=256)
@@ -80,11 +82,70 @@ if __name__ == '__main__':
     pixelWhiteness[pixelWhiteness > backgroundVal] *= 4
     saveArbitraryImage(pixelWhiteness, filePath+'/img_whiteness.jpg')
 
+    # Approximate gradient
+
+    def convolve2dToNd(arr, kernel):
+        outArr = np.zeros_like(arr)
+        for ii in range(arr.shape[2]):
+            outArr[:, :, ii] = convolve(arr[:, :, ii], kernel)
+        return outArr
+    
+    sobelKernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(SOBEL_KERNEL_RAD*2+1, SOBEL_KERNEL_RAD*2+1))
+    sobelKernel = np.array(sobelKernel, dtype=np.int16)
+    sobelKernel[:, SOBEL_KERNEL_RAD] = 0
+    sobelKernel[:, :SOBEL_KERNEL_RAD] *= -1
+
+    sobelSmoothKernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(SOBEL_PRE_SMOOTH_RAD*2+1, SOBEL_PRE_SMOOTH_RAD*2+1))
+    
+    if SOBEL_DO_RGB:
+        rawImg_smoothed = convolve2dToNd(np.array(inImg, dtype=np.int32), sobelSmoothKernel) / np.sum(sobelSmoothKernel)
+
+        print(rawImg_smoothed.shape)
+        sobelHorz = convolve2dToNd(np.array(rawImg_smoothed, dtype=np.int32), sobelKernel)
+        # sobelHorz = np.sum(np.abs(sobelHorz), axis=2)
+        sobelHorz = np.sum(sobelHorz, axis=2)
+        sobelKernel = np.swapaxes(sobelKernel, 0, 1)
+        sobelVert = convolve2dToNd(np.array(rawImg_smoothed, dtype=np.int32), sobelKernel)
+        sobelVert = np.sum(np.abs(sobelVert), axis=2)
+    else:
+        rawImg_smoothed = convolve(np.array(rawImg, dtype=np.int32), sobelSmoothKernel) / np.sum(sobelSmoothKernel)
+
+        sobelHorz = convolve(np.array(rawImg_smoothed, dtype=np.int32), sobelKernel)
+        # sobelHorz = np.abs(sobelHorz)
+        sobelKernel = np.swapaxes(sobelKernel, 0, 1)
+        sobelVert = convolve(np.array(rawImg_smoothed, dtype=np.int32), sobelKernel)
+        sobelVert = np.abs(sobelVert)
+
+
+    sobelImg = np.zeros_like(inImg, dtype=np.int32)
+    sobelImg[:, :, 0] = sobelHorz + np.min(sobelHorz)
+    sobelImg[:, :, 1] = sobelVert + np.min(sobelVert)
+    saveArbitraryImage(sobelImg, filePath+'/img_sobel.jpg', mode='RGB')
+
+
+    sobelMag = np.abs(sobelHorz) + np.abs(sobelVert)
+    sobelDir = np.arctan2(sobelHorz, sobelVert)
+
+    print(np.max(sobelDir))
+    print(np.min(sobelDir))
+
+    sobelNetSmoothingKernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(SOBEL_NET_SMOOTH_RAD*2+1, SOBEL_NET_SMOOTH_RAD*2+1))
+    sobelMag = convolve(sobelMag, sobelNetSmoothingKernel)
+
+
+    # sobelHorz = np.array(sobelHorz, dtype=np.double) / (sobelMag + np.average(sobelMag))
+    # sobelVert = np.array(sobelVert, dtype=np.double) / (sobelMag + np.average(sobelMag))
+
+    # sobelImg = np.zeros_like(inImg, dtype=np.double)
+    # sobelImg[:, :, 0] = sobelHorz
+    # sobelImg[:, :, 1] = sobelVert
+    saveArbitraryImage(sobelDir - np.min(sobelDir), filePath+'/img_sobelAdjusted.jpg')
+    # saveArbitraryImage(sobelDir + np.min(sobelDir), filePath+'/img_sobelAdjusted.jpg', mode='RGB')
+    
     adjustImg = np.array(rawImg, dtype=np.double)
     adjustImg /= np.max(adjustImg)
 
     if DARKEN_NOT_WHITE:
-        print(np.max((stdev + STD_TRUNC_VAL)/150))
         adjustImg += (stdev + STD_TRUNC_VAL)/300
         
     if DARKEN_EDGES:
@@ -135,6 +196,9 @@ if __name__ == '__main__':
     plt.title("Distribution of shade in final greyscale image")
     plt.savefig(filePath + '/plt_shadeDist.jpg')
 
+
+    # exit()
+
     # Convert to pts
     pointMap = convertToPoints(rawImg, skipToEveryNth=SKIP_TO_NTH, subdivSize=SUBDIV_SIZE, subDivRad=SUBDIV_RAD, maxVal=MAX_VAL, minDist=MIN_DIST, scaleFact=SCALE_FACT)
 
@@ -142,7 +206,7 @@ if __name__ == '__main__':
     print(len(pointMap[0]))
     # Connect lines
 
-    # Display line output
+    # Display point output
     points = Image.new("RGB", inImg.size, "white")
     draw = ImageDraw.Draw(points)
     for pt in iterateOverFullMap(pointMap):
@@ -150,10 +214,35 @@ if __name__ == '__main__':
     points.save(filePath + '/out_points.jpg')
     # points.show()
 
+    # Export points
+    doc = ezdxf.new()
+    msp = doc.modelspace()
+    for pt in iterateOverFullMap(pointMap):
+        msp.add_circle((pt[1]*MM_PER_PIX, -pt[0]*MM_PER_PIX), CIRCLE_RAD)
+
+    doc.saveas(filePath+'/out_points.dxf')
+    doc.saveas('proc/currCircleArt.dxf')
+
+    # Display tangent lines
+    sobelDir += np.pi/2
+    xMagSet = np.cos(sobelDir)
+    yMagSet = np.sin(sobelDir)
+    tanLines = Image.new("RGB", inImg.size, "white")
+    draw = ImageDraw.Draw(tanLines)
+    for pt in iterateOverFullMap(pointMap):
+        xMag = xMagSet[*pt]
+        yMag = yMagSet[*pt]
+        print(yMag)
+        draw.line([(pt[1] - yMag*TAN_LINE_RAD, pt[0] - xMag*TAN_LINE_RAD), (pt[1] + yMag*TAN_LINE_RAD, pt[0] + xMag*TAN_LINE_RAD)], fill="black", width=3)
+        print(f"pt:{pt}")
+    tanLines.save(filePath + '/out_tanLines.jpg')
+    # tanLines.show()
+
+    exit()
+
     # Generate lines
     lineData = connectPoints(pointMap, subdivSize=SUBDIV_SIZE, subDivRad=SUBDIV_RAD, maxLineLen=MAX_LINE_LEN)
     # lineData = pointsToLines(pointMap, subDivRad=SUBDIV_RAD, maxLineLen=MAX_LINE_LEN)
-    print(len(lineData))
 
     # Plot lines
     lines = Image.new("RGB", inImg.size, "white")
@@ -171,10 +260,6 @@ if __name__ == '__main__':
     print(f"lineData:{len(lineData)}")
 
 
-
-    # Export Design
-    import ezdxf
-
     # Export lines
     doc = ezdxf.new()
     msp = doc.modelspace()
@@ -184,12 +269,3 @@ if __name__ == '__main__':
 
     doc.saveas(filePath+'/out_lines.dxf')
     doc.saveas('proc/currLineArt.dxf')
-
-
-    doc = ezdxf.new()
-    msp = doc.modelspace()
-    for pt in iterateOverFullMap(pointMap):
-        msp.add_circle((pt[1]*MM_PER_PIX, -pt[0]*MM_PER_PIX), CIRCLE_RAD)
-
-    doc.saveas(filePath+'/out_points.dxf')
-    doc.saveas('proc/currCircleArt.dxf')
