@@ -36,5 +36,8 @@ SOBEL_DO_RGB = True
 TAN_LINE_RAD = 5
 SOBEL_MULT = 100.0
 
+# Box Nest Defs
+OUTLINE_OFFSET = 5 # Offset of outline of box in pix
+
 # MAX_DIMS = [500, 400]
 # MAX_DIMS = [100, 150]

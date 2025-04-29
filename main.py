@@ -9,7 +9,7 @@ from copy import deepcopy
 from PIL import Image, ImageDraw
 import cv2
 import matplotlib.pyplot as plt 
-import ezdxf
+
 
 from funcs import *
 from defs import *
@@ -100,7 +100,6 @@ if __name__ == '__main__':
     if SOBEL_DO_RGB:
         rawImg_smoothed = convolve2dToNd(np.array(inImg, dtype=np.int32), sobelSmoothKernel) / np.sum(sobelSmoothKernel)
 
-        print(rawImg_smoothed.shape)
         sobelHorz = convolve2dToNd(np.array(rawImg_smoothed, dtype=np.int32), sobelKernel)
         # sobelHorz = np.sum(np.abs(sobelHorz), axis=2)
         sobelHorz = np.sum(sobelHorz, axis=2)
@@ -125,9 +124,6 @@ if __name__ == '__main__':
 
     sobelMag = np.abs(sobelHorz) + np.abs(sobelVert)
     sobelDir = np.arctan2(sobelHorz, sobelVert)
-
-    print(np.max(sobelDir))
-    print(np.min(sobelDir))
 
     sobelNetSmoothingKernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(SOBEL_NET_SMOOTH_RAD*2+1, SOBEL_NET_SMOOTH_RAD*2+1))
     sobelMag = convolve(sobelMag, sobelNetSmoothingKernel)
@@ -155,13 +151,11 @@ if __name__ == '__main__':
         modColPix = np.array(colPix, dtype=np.int32)
         colDiffs = np.zeros_like(modColPix, dtype=np.double)
         
-        print(colPix[:, :, 0].shape)
         for ii in range(3):
             modColPix[:, :, ii] = convolve(modColPix[:, :, ii], smoothKernel) / np.sum(smoothKernel)
             colDiffs[:, :, ii] = convolve(modColPix[:, :, ii], diffKernel)#, mode='same')
         colDiffs = modColPix - colDiffs/np.sum(diffKernel)
         # colDiffs -= np.min(colDiffs)
-        # print(colDiffs)
 
         # Plot image edge selection distribution
         plt.cla()
@@ -226,63 +220,38 @@ if __name__ == '__main__':
     sobelDir += np.pi/2
     xMagSet = np.cos(sobelDir)
     yMagSet = np.sin(sobelDir)
-    tanLines = Image.new("RGB", inImg.size, "white")
-    draw = ImageDraw.Draw(tanLines)
+    
+    tanLines = []
     for pt in iterateOverFullMap(pointMap):
         xMag = xMagSet[*pt]
         yMag = yMagSet[*pt]
-        print(yMag)
-        draw.line([(pt[1] - yMag*TAN_LINE_RAD, pt[0] - xMag*TAN_LINE_RAD), (pt[1] + yMag*TAN_LINE_RAD, pt[0] + xMag*TAN_LINE_RAD)], fill="black", width=3)
-        print(f"pt:{pt}")
-    tanLines.save(filePath + '/out_tanLines.jpg')
-    # tanLines.show()
+        tanLines.append([(pt[0] - xMag*TAN_LINE_RAD, pt[1] - yMag*TAN_LINE_RAD), (pt[0] + xMag*TAN_LINE_RAD, pt[1] + yMag*TAN_LINE_RAD)])
+    exportLines(tanLines, filePath+'/out_tanLines', inImg, MM_PER_PIX)
 
     # Generate lines
     lineData = connectPoints(pointMap, subdivSize=SUBDIV_SIZE, subDivRad=SUBDIV_RAD, maxLineLen=MAX_LINE_LEN)
     # lineData = pointsToLines(pointMap, subDivRad=SUBDIV_RAD, maxLineLen=MAX_LINE_LEN)
 
     # Plot lines
-    lines = Image.new("RGB", inImg.size, "white")
-    draw = ImageDraw.Draw(lines)
-    doc = ezdxf.new()
-    msp = doc.modelspace()
+    outLines = []
     for fooLine in lineData:
         for idx in range(len(fooLine)-1):
-            draw.line([(fooLine[idx][1], fooLine[idx][0]), (fooLine[idx+1][1], fooLine[idx+1][0])], fill="black", width=3)
-            msp.add_line((fooLine[idx][1]*MM_PER_PIX, -fooLine[idx][0]*MM_PER_PIX), (fooLine[idx+1][1]*MM_PER_PIX, -fooLine[idx+1][0]*MM_PER_PIX), dxfattribs={"color": 2})
-
-        # # draw.point(pt, fill="black")
-        # drawSize = 3
-        # draw.ellipse([(pt[1]-drawSize, pt[0]-drawSize), (pt[1]+drawSize, pt[0]+drawSize)], fill="black")
-    lines.save(filePath + '/out_lines.jpg')
-    # lines.show()
-    doc.saveas(filePath+'/out_lines.dxf')
-    doc.saveas('proc/currLineArt.dxf')
-
-
-
+            outLines.append([(fooLine[idx][0], fooLine[idx][1]), (fooLine[idx+1][0], fooLine[idx+1][1])])
+    exportLines(outLines, filePath+'/out_linesout_lines', inImg, MM_PER_PIX)
+    exportLines(outLines, 'proc/currLineArt', inImg, MM_PER_PIX)
 
     # Generate lines
     lineData = connectPointsWithTangents(pointMap, sobelDir, sobelMag, sobelFactor=SOBEL_MULT, subdivSize=SUBDIV_SIZE, subDivRad=SUBDIV_RAD, maxLineLen=MAX_LINE_LEN)
     # lineData = pointsToLines(pointMap, subDivRad=SUBDIV_RAD, maxLineLen=MAX_LINE_LEN)
 
     # Plot lines
-    lines = Image.new("RGB", inImg.size, "white")
-    draw = ImageDraw.Draw(lines)
-    doc = ezdxf.new()
-    msp = doc.modeangDifflspace()
+    pointLines = []
     for fooLine in lineData:
         for idx in range(len(fooLine)-1):
-            draw.line([(fooLine[idx][1], fooLine[idx][0]), (fooLine[idx+1][1], fooLine[idx+1][0])], fill="black", width=3)
-            msp.add_line((fooLine[idx][1]*MM_PER_PIX, -fooLine[idx][0]*MM_PER_PIX), (fooLine[idx+1][1]*MM_PER_PIX, -fooLine[idx+1][0]*MM_PER_PIX), dxfattribs={"color": 2})
+            pointLines.append([(fooLine[idx][0], fooLine[idx][1]), (fooLine[idx+1][0], fooLine[idx+1][1])])
 
-        # # draw.point(pt, fill="black")
-        # drawSize = 3
-        # draw.ellipse([(pt[1]-drawSize, pt[0]-drawSize), (pt[1]+drawSize, pt[0]+drawSize)], fill="black")
-    lines.save(filePath + '/out_tanLinesV2.jpg')
-    lines.show()
-    doc.saveas(filePath+'/out_tanLinesV2.dxf')
-    doc.saveas('proc/currLineArt.dxf')
+    exportLines(pointLines, filePath+'/out_tanLinesV2', inImg, MM_PER_PIX)
+    exportLines(pointLines, 'proc/currLineArt', inImg, MM_PER_PIX)
 
 
 

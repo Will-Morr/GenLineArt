@@ -6,7 +6,7 @@ import time
 from copy import deepcopy
 from PIL import Image, ImageDraw
 import matplotlib.pyplot as plt 
-
+import ezdxf
 
 
 # Shorthand for magnitude of vector
@@ -82,14 +82,10 @@ def convertToPoints(imgArr, skipToEveryNth = 10, subdivSize = 50, subDivRad = 1,
     pixTestList = np.meshgrid(np.arange(0, iW, skipToEveryNth), np.arange(0, iH, skipToEveryNth))
     pixTestList = np.array([foo.flatten() for foo in pixTestList])
     valList = imgArr[*pixTestList]
-    print(pixTestList.shape)
-    print(f"valList:{valList}")
 
     sortList = np.argsort(valList)
-    print(f"sortList:{sortList}")
     valList = valList[sortList]
     pixTestList = pixTestList[:, sortList]
-    print(f"pixTestList:{pixTestList}")
 
     for xx, yy in np.swapaxes(pixTestList, 0, 1):
         val = imgArr[xx, yy]
@@ -226,3 +222,18 @@ def connectPointsWithTangents(inputPointMap, sobelDir, sobelMag, sobelFactor = 1
             outLines.append([currPt, bestPt])
             
     return outLines
+
+def exportLines(ionputLines, outputLabel, inImg, MM_PER_PIX):
+    lines = Image.new("RGB", inImg.size, "white")
+    draw = ImageDraw.Draw(lines)
+    
+    doc = ezdxf.new()
+    msp = doc.modelspace()
+    
+    for fooLine in ionputLines:
+        draw.line([(fooLine[0][1], fooLine[0][0]), (fooLine[1][1], fooLine[1][0])], fill="black", width=3)
+        msp.add_line((fooLine[0][1]*MM_PER_PIX, - fooLine[0][0]*MM_PER_PIX), (fooLine[1][1]*MM_PER_PIX, - fooLine[1][0]*MM_PER_PIX), dxfattribs={"color": 2})
+    
+    lines.save(outputLabel+'.jpg')
+    # lines.show()
+    doc.saveas(outputLabel+'.dxf')
