@@ -182,3 +182,47 @@ def connectPoints(inputPointMap, subdivSize=50, subDivRad = 1, maxLineLen = 50):
             outLines.append([currPt, bestPt])
 
     return outLines
+
+
+
+def connectPointsWithTangents(inputPointMap, sobelDir, sobelMag, sobelFactor = 10.0, subdivSize=50, subDivRad = 1, maxLineLen = 50):
+    pointMap = deepcopy(inputPointMap)
+
+    outLines = []
+    for currPt in iterateOverFullMap(pointMap, destroy=True):
+        currPtNp = np.array(currPt)
+        sobelDirPt = sobelDir[*currPtNp]
+        sobelMagPt = sobelMag[*currPtNp]
+
+        xMapInd = int(currPt[0]/subdivSize)
+        yMapInd = int(currPt[1]/subdivSize)
+    
+        minDist = np.inf
+        bestPt = None
+
+        print('\n---------')
+        for cmpPt, cmpIdx in subDivMapIterator(pointMap, (xMapInd, yMapInd), subDivRad, includeIdx=True):
+            if currPt == cmpPt: 
+                continue
+            diff = [cmpPt[0] - currPt[0], cmpPt[1] - currPt[1]]
+            ang = np.arctan2(*diff)
+            
+            angDiff =  sobelDirPt - ang
+            while angDiff > np.pi: angDiff -= np.pi*2
+            angDiff = np.abs(angDiff)
+
+            print('   ', sobelDirPt, ' ', diff, ' -> ', ang, '   ', angDiff)
+
+            dist = magnitude(diff)
+
+            score = dist + angDiff*sobelFactor
+            if score < minDist:
+                # print(dist)
+                minDist = dist
+                bestPt = cmpPt
+
+        if bestPt != None:
+            # if [currPt, bestPt] not in outLines:
+            outLines.append([currPt, bestPt])
+            
+    return outLines

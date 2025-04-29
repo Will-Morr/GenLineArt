@@ -202,8 +202,6 @@ if __name__ == '__main__':
     # Convert to pts
     pointMap = convertToPoints(rawImg, skipToEveryNth=SKIP_TO_NTH, subdivSize=SUBDIV_SIZE, subDivRad=SUBDIV_RAD, maxVal=MAX_VAL, minDist=MIN_DIST, scaleFact=SCALE_FACT)
 
-    print(len(pointMap))
-    print(len(pointMap[0]))
     # Connect lines
 
     # Display point output
@@ -213,6 +211,7 @@ if __name__ == '__main__':
         draw.ellipse([(pt[1]-CIRCLE_RAD, pt[0]-CIRCLE_RAD), (pt[1]+CIRCLE_RAD, pt[0]+CIRCLE_RAD)], fill="black", )
     points.save(filePath + '/out_points.jpg')
     # points.show()
+    
 
     # Export points
     doc = ezdxf.new()
@@ -238,8 +237,6 @@ if __name__ == '__main__':
     tanLines.save(filePath + '/out_tanLines.jpg')
     # tanLines.show()
 
-    exit()
-
     # Generate lines
     lineData = connectPoints(pointMap, subdivSize=SUBDIV_SIZE, subDivRad=SUBDIV_RAD, maxLineLen=MAX_LINE_LEN)
     # lineData = pointsToLines(pointMap, subDivRad=SUBDIV_RAD, maxLineLen=MAX_LINE_LEN)
@@ -247,25 +244,49 @@ if __name__ == '__main__':
     # Plot lines
     lines = Image.new("RGB", inImg.size, "white")
     draw = ImageDraw.Draw(lines)
-    for fooLine in lineData:
-        for idx in range(len(fooLine)-1):
-            draw.line([(fooLine[idx][1], fooLine[idx][0]), (fooLine[idx+1][1], fooLine[idx+1][0])], fill="black", width=3)
-        # # draw.point(pt, fill="black")
-        # drawSize = 3
-        # draw.ellipse([(pt[1]-drawSize, pt[0]-drawSize), (pt[1]+drawSize, pt[0]+drawSize)], fill="black")
-    lines.save(filePath + '/out_lines.jpg')
-    lines.show()
-
-    print(f"pointMap:{len(pointMap)}")
-    print(f"lineData:{len(lineData)}")
-
-
-    # Export lines
     doc = ezdxf.new()
     msp = doc.modelspace()
     for fooLine in lineData:
         for idx in range(len(fooLine)-1):
+            draw.line([(fooLine[idx][1], fooLine[idx][0]), (fooLine[idx+1][1], fooLine[idx+1][0])], fill="black", width=3)
             msp.add_line((fooLine[idx][1]*MM_PER_PIX, -fooLine[idx][0]*MM_PER_PIX), (fooLine[idx+1][1]*MM_PER_PIX, -fooLine[idx+1][0]*MM_PER_PIX), dxfattribs={"color": 2})
 
+        # # draw.point(pt, fill="black")
+        # drawSize = 3
+        # draw.ellipse([(pt[1]-drawSize, pt[0]-drawSize), (pt[1]+drawSize, pt[0]+drawSize)], fill="black")
+    lines.save(filePath + '/out_lines.jpg')
+    # lines.show()
     doc.saveas(filePath+'/out_lines.dxf')
     doc.saveas('proc/currLineArt.dxf')
+
+
+
+
+    # Generate lines
+    lineData = connectPointsWithTangents(pointMap, sobelDir, sobelMag, sobelFactor=SOBEL_MULT, subdivSize=SUBDIV_SIZE, subDivRad=SUBDIV_RAD, maxLineLen=MAX_LINE_LEN)
+    # lineData = pointsToLines(pointMap, subDivRad=SUBDIV_RAD, maxLineLen=MAX_LINE_LEN)
+
+    # Plot lines
+    lines = Image.new("RGB", inImg.size, "white")
+    draw = ImageDraw.Draw(lines)
+    doc = ezdxf.new()
+    msp = doc.modeangDifflspace()
+    for fooLine in lineData:
+        for idx in range(len(fooLine)-1):
+            draw.line([(fooLine[idx][1], fooLine[idx][0]), (fooLine[idx+1][1], fooLine[idx+1][0])], fill="black", width=3)
+            msp.add_line((fooLine[idx][1]*MM_PER_PIX, -fooLine[idx][0]*MM_PER_PIX), (fooLine[idx+1][1]*MM_PER_PIX, -fooLine[idx+1][0]*MM_PER_PIX), dxfattribs={"color": 2})
+
+        # # draw.point(pt, fill="black")
+        # drawSize = 3
+        # draw.ellipse([(pt[1]-drawSize, pt[0]-drawSize), (pt[1]+drawSize, pt[0]+drawSize)], fill="black")
+    lines.save(filePath + '/out_tanLinesV2.jpg')
+    lines.show()
+    doc.saveas(filePath+'/out_tanLinesV2.dxf')
+    doc.saveas('proc/currLineArt.dxf')
+
+
+
+    # Generate lines with tangent handling
+    # lineData = connectPoints(pointMap, subdivSize=SUBDIV_SIZE, subDivRad=SUBDIV_RAD, maxLineLen=MAX_LINE_LEN)
+
+
