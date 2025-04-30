@@ -223,14 +223,14 @@ def connectPointsWithTangents(inputPointMap, sobelDir, sobelMag, sobelFactor = 1
             
     return outLines
 
-def exportLines(ionputLines, outputLabel, inImg, MM_PER_PIX):
+def exportLines(inputLines, outputLabel, inImg, MM_PER_PIX):
     lines = Image.new("RGB", inImg.size, "white")
     draw = ImageDraw.Draw(lines)
     
     doc = ezdxf.new()
     msp = doc.modelspace()
     
-    for fooLine in ionputLines:
+    for fooLine in inputLines:
         draw.line([(fooLine[0][1], fooLine[0][0]), (fooLine[1][1], fooLine[1][0])], fill="black", width=3)
         msp.add_line((fooLine[0][1]*MM_PER_PIX, - fooLine[0][0]*MM_PER_PIX), (fooLine[1][1]*MM_PER_PIX, - fooLine[1][0]*MM_PER_PIX), dxfattribs={"color": 2})
     
