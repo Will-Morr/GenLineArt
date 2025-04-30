@@ -18,7 +18,7 @@ def magnitude(vect):
 	# 	return(np.sqrt(np.sum(pow(vect,2))))
 
 def saveArbitraryImage(arr, path, mode='L'):
-    washOutImage = Image.fromarray(np.array((arr/np.max(arr))*255, dtype=np.uint8), mode = mode)
+    washOutImage = Image.fromarray(np.array(((arr-np.min(arr))/(np.max(arr)-np.min(arr)))*255, dtype=np.uint8), mode = mode)
     washOutImage.save(path)
 
 def linearizeImage(arr):
@@ -234,6 +234,6 @@ def exportLines(ionputLines, outputLabel, inImg, MM_PER_PIX):
         draw.line([(fooLine[0][1], fooLine[0][0]), (fooLine[1][1], fooLine[1][0])], fill="black", width=3)
         msp.add_line((fooLine[0][1]*MM_PER_PIX, - fooLine[0][0]*MM_PER_PIX), (fooLine[1][1]*MM_PER_PIX, - fooLine[1][0]*MM_PER_PIX), dxfattribs={"color": 2})
     
-    lines.save(outputLabel+'.jpg')
+    lines.save(outputLabel+'.png')
     # lines.show()
     doc.saveas(outputLabel+'.dxf')

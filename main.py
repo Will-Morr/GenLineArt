@@ -20,14 +20,14 @@ if __name__ == '__main__':
     filePath = 'proc/' + folderName
     
     # Check if input exists
-    if not os.path.exists(filePath + '/input.jpg'):
+    if not os.path.exists(filePath + '/input.png'):
         if not os.path.exists(filePath):
             os.mkdir(filePath)
 
         # Take picture
 
     # Load image
-    inImg = Image.open(filePath + '/input.jpg').convert('RGB')
+    inImg = Image.open(filePath + '/input.png').convert('RGB')
 
     # Resize image
     origImSize = inImg.size
@@ -40,13 +40,13 @@ if __name__ == '__main__':
 
     # Load array of raw pixels
     rawImg = np.array(inImg.convert('L'))
-    saveArbitraryImage(rawImg, filePath+'/img_rawGrayScale.jpg')
+    saveArbitraryImage(rawImg, filePath+'/img_rawGrayScale.png')
 
     # Plot hist of input image values if requested
     plt.hist(rawImg.flatten(), bins=256)
     # plt.axvline(MAX_VAL, color='orange')
     plt.title("Distribution of shade in raw image")
-    plt.savefig(filePath + '/plt_pixDistribution.jpg')
+    plt.savefig(filePath + '/plt_pixDistribution.png')
 
     # Linearize image
     if DO_IMAGE_LINEARIZATION:
@@ -65,13 +65,13 @@ if __name__ == '__main__':
     plt.cla()
     plt.hist(np.array(stdev).flatten(), bins=50)
     plt.title("Standard deviation of RGB of each pixel")    
-    plt.savefig(filePath + '/plt_pixStd.jpg')
+    plt.savefig(filePath + '/plt_pixStd.png')
 
     # Set all stdevs < 5 to 5
     stdev[stdev < STD_TRUNC_VAL] = STD_TRUNC_VAL
     stdev /= STD_TRUNC_VAL
 
-    saveArbitraryImage(stdev, filePath+'/img_stdev.jpg')
+    saveArbitraryImage(stdev, filePath+'/img_stdev.png')
 
     # Actually adjust for whiteness
     pixelWhiteness /= stdev
@@ -80,10 +80,9 @@ if __name__ == '__main__':
 
     # Plot pixel whiteness
     pixelWhiteness[pixelWhiteness > backgroundVal] *= 4
-    saveArbitraryImage(pixelWhiteness, filePath+'/img_whiteness.jpg')
+    saveArbitraryImage(pixelWhiteness, filePath+'/img_whiteness.png')
 
     # Approximate gradient
-
     def convolve2dToNd(arr, kernel):
         outArr = np.zeros_like(arr)
         for ii in range(arr.shape[2]):
@@ -103,23 +102,28 @@ if __name__ == '__main__':
         sobelHorz = convolve2dToNd(np.array(rawImg_smoothed, dtype=np.int32), sobelKernel)
         # sobelHorz = np.sum(np.abs(sobelHorz), axis=2)
         sobelHorz = np.sum(sobelHorz, axis=2)
-        sobelKernel = np.swapaxes(sobelKernel, 0, 1)
-        sobelVert = convolve2dToNd(np.array(rawImg_smoothed, dtype=np.int32), sobelKernel)
+        sobelVert = convolve2dToNd(np.array(rawImg_smoothed, dtype=np.int32), np.swapaxes(sobelKernel, 0, 1))
         sobelVert = np.sum(np.abs(sobelVert), axis=2)
     else:
         rawImg_smoothed = convolve(np.array(rawImg, dtype=np.int32), sobelSmoothKernel) / np.sum(sobelSmoothKernel)
 
         sobelHorz = convolve(np.array(rawImg_smoothed, dtype=np.int32), sobelKernel)
         # sobelHorz = np.abs(sobelHorz)
-        sobelKernel = np.swapaxes(sobelKernel, 0, 1)
-        sobelVert = convolve(np.array(rawImg_smoothed, dtype=np.int32), sobelKernel)
+        sobelVert = convolve(np.array(rawImg_smoothed, dtype=np.int32), np.swapaxes(sobelKernel, 0, 1))
         sobelVert = np.abs(sobelVert)
 
 
     sobelImg = np.zeros_like(inImg, dtype=np.int32)
-    sobelImg[:, :, 0] = sobelHorz + np.min(sobelHorz)
-    sobelImg[:, :, 1] = sobelVert + np.min(sobelVert)
-    saveArbitraryImage(sobelImg, filePath+'/img_sobel.jpg', mode='RGB')
+    sobelImg[:, :, 0] = sobelHorz # + np.min(sobelHorz)
+    sobelImg[:, :, 2] = sobelVert # + np.min(sobelVert)
+    sobelImg[:, :, 1] = np.min([sobelVert, sobelHorz])
+    saveArbitraryImage(sobelImg, filePath+'/img_sobel.png', mode='RGB')
+
+    sobelMag = np.zeros_like(inImg, dtype=np.int32)
+    sobelMag[:, :, 0] = np.abs(sobelHorz) # + np.min(sobelHorz)
+    sobelMag[:, :, 1] = np.abs(sobelVert) # + np.min(sobelVert)
+    # sobelMag[:, :, 2] = np.min([np.abs(sobelVert), np.abs(sobelHorz)])
+    saveArbitraryImage(sobelMag, filePath+'/img_sobelMag.png', mode='RGB')
 
 
     sobelMag = np.abs(sobelHorz) + np.abs(sobelVert)
@@ -135,8 +139,8 @@ if __name__ == '__main__':
     # sobelImg = np.zeros_like(inImg, dtype=np.double)
     # sobelImg[:, :, 0] = sobelHorz
     # sobelImg[:, :, 1] = sobelVert
-    saveArbitraryImage(sobelDir - np.min(sobelDir), filePath+'/img_sobelAdjusted.jpg')
-    # saveArbitraryImage(sobelDir + np.min(sobelDir), filePath+'/img_sobelAdjusted.jpg', mode='RGB')
+    saveArbitraryImage(sobelDir - np.min(sobelDir), filePath+'/img_sobelAdjusted.png')
+    # saveArbitraryImage(sobelDir + np.min(sobelDir), filePath+'/img_sobelAdjusted.png', mode='RGB')
     
     adjustImg = np.array(rawImg, dtype=np.double)
     adjustImg /= np.max(adjustImg)
@@ -161,13 +165,13 @@ if __name__ == '__main__':
         plt.cla()
         plt.hist(np.sum(colDiffs, axis=2).flatten(), bins=50)
         plt.title("Absolute sum of RGB Difference in each axis")
-        plt.savefig(filePath + '/plt_edgeDist.jpg')
+        plt.savefig(filePath + '/plt_edgeDist.png')
 
         colDiffs[colDiffs > 0] = 0
 
         colDiffs = np.max(np.abs(colDiffs), axis=2)
         colDiffs[colDiffs > 100] = 100
-        saveArbitraryImage(colDiffs, filePath+'/img_edges.jpg', mode='L')
+        saveArbitraryImage(colDiffs, filePath+'/img_edges.png', mode='L')
         
         # adjustImg -= colDiffs/500
         # adjustImg = np.min([adjustImg, 1.0-colDiffs/150], axis=0)
@@ -175,23 +179,23 @@ if __name__ == '__main__':
         adjustImg[adjustImg < -0.0] = -0.0
 
     # Save greyscale image
-    # saveArbitraryImage(adjustImg, filePath+'/img_tmp.jpg', mode='L')
+    # saveArbitraryImage(adjustImg, filePath+'/img_tmp.png', mode='L')
     whitePts = np.where(rawImg == 255)
     adjustImg -= np.min(adjustImg)
     adjustImg *= 255/np.max(adjustImg)
     rawImg = np.array(adjustImg, dtype=np.uint8)
     rawImg[whitePts] = 255
-    Image.fromarray(rawImg, mode='L').save(filePath + '/img_grey.jpg')
+    Image.fromarray(rawImg, mode='L').save(filePath + '/img_grey.png')
 
     # Plot image edge selection distribution
     plt.cla()
     shadePts = rawImg.flatten()
     plt.hist(shadePts[shadePts < 255], bins=256)
     plt.title("Distribution of shade in final greyscale image")
-    plt.savefig(filePath + '/plt_shadeDist.jpg')
+    plt.savefig(filePath + '/plt_shadeDist.png')
 
 
-    # exit()
+    exit()
 
     # Convert to pts
     pointMap = convertToPoints(rawImg, skipToEveryNth=SKIP_TO_NTH, subdivSize=SUBDIV_SIZE, subDivRad=SUBDIV_RAD, maxVal=MAX_VAL, minDist=MIN_DIST, scaleFact=SCALE_FACT)
@@ -203,7 +207,7 @@ if __name__ == '__main__':
     draw = ImageDraw.Draw(points)
     for pt in iterateOverFullMap(pointMap):
         draw.ellipse([(pt[1]-CIRCLE_RAD, pt[0]-CIRCLE_RAD), (pt[1]+CIRCLE_RAD, pt[0]+CIRCLE_RAD)], fill="black", )
-    points.save(filePath + '/out_points.jpg')
+    points.save(filePath + '/out_points.png')
     # points.show()
     
 
