@@ -66,7 +66,7 @@ M6 P1
 """
 
 def make_cut_gcode(paths,
-        Z = 20.0,   # mm
+        Z = 0,   # mm
         power = 60.0, # %
         speed = 50.0, #mm/s  
     ):
@@ -89,13 +89,13 @@ G0Q30 # 30 kHz for fiber laser
 G4M1
 M523P40
 
-# Z move
-# G102
-#G91 #incremental
-# G0Z{Z}F600
-# G90 #absolute
-# G103
-# G0F180000
+Z move
+G102
+G91 #incremental
+G0Z{Z}F600
+G90 #absolute
+G103
+G0F180000
 """
 
     def round3(v):
@@ -176,7 +176,12 @@ def getPhoto(outPath = None):
 
     return Image.open(io.BytesIO(data.content))
 
-def runLines(inputLines):
+def runLines(
+        inputLines,
+        Z = 0,   # mm
+        power = 60.0, # %
+        speed = 50.0, #mm/s
+        ):
     # data = '{"action":"goTo","z":20.0,"stopFirst":1,"F":5000}'
     # requests.put(f"{base_url}:8080/focus/control", data=data)
 
@@ -191,7 +196,7 @@ def runLines(inputLines):
     Connection: close
     """
 
-    xf_data = make_xf(make_cut_gcode(inputLines))
+    xf_data = make_xf(make_cut_gcode(inputLines, Z, power, speed))
     # the_file_contents = xf_data # open("the_test_file.xf", "rb").read()
     ok = requests.post(f"{base_url}:8080/processing/upload?gcodeType=processing&fileType=xf&taskId=PC_F1Ultra_MXFK002B2024072307949AB_1740275842761&autoStart=1", data=xf_data)
     print("ok? = ", ok)

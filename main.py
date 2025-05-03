@@ -90,7 +90,8 @@ if __name__ == '__main__':
 
         # Actually adjust for whiteness
         pixelWhiteness /= stdev
-        backgroundVal = np.min(pixelWhiteness[:2, :])
+        # backgroundVal = np.min(pixelWhiteness[:5, :])
+        backgroundVal = 200
         rawImg[pixelWhiteness > backgroundVal] = 255
 
         # Plot pixel whiteness
@@ -141,8 +142,9 @@ if __name__ == '__main__':
         saveArbitraryImage(sobelMag, filePath+'/img_sobelMag.png', mode='RGB')
 
         sobelNetSmoothingKernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(SOBEL_NET_SMOOTH_RAD*2+1, SOBEL_NET_SMOOTH_RAD*2+1))
-        sobelMag = convolve(sobelMag, sobelNetSmoothingKernel)
+        sobelMag = convolve2dToNd(sobelMag, sobelNetSmoothingKernel)
 
+        sobelDir = np.arctan2(sobelHorz, sobelVert)
 
         # sobelHorz = np.array(sobelHorz, dtype=np.double) / (sobelMag + np.average(sobelMag))
         # sobelVert = np.array(sobelVert, dtype=np.double) / (sobelMag + np.average(sobelMag))
@@ -217,25 +219,35 @@ if __name__ == '__main__':
 
         # Connect lines
 
-        # Display point output
-        points = Image.new("RGB", inImg.size, "white")
-        draw = ImageDraw.Draw(points)
+        pointLines = []
         for pt in iterateOverFullMap(pointMap):
-            draw.ellipse([(pt[1]-CIRCLE_RAD, pt[0]-CIRCLE_RAD), (pt[1]+CIRCLE_RAD, pt[0]+CIRCLE_RAD)], fill="black", )
-        points.save(filePath + '/out_points.png')
-        # points.show()
+            x, y = pt
+            pointLines.append([(x+CIRCLE_RAD, y), (x, y+CIRCLE_RAD)])
+            pointLines.append([(x+CIRCLE_RAD, y), (x, y-CIRCLE_RAD)])
+            pointLines.append([(x-CIRCLE_RAD, y), (x, y-CIRCLE_RAD)])
+            pointLines.append([(x-CIRCLE_RAD, y), (x, y+CIRCLE_RAD)])
+        exportLines(pointLines, filePath+'/out_points', inImg, MM_PER_PIX)
+
+        # # Display point output
+        # points = Image.new("RGB", inImg.size, "white")
+        # draw = ImageDraw.Draw(points)
+        # for pt in iterateOverFullMap(pointMap):
+        #     draw.ellipse([(pt[1]-CIRCLE_RAD, pt[0]-CIRCLE_RAD), (pt[1]+CIRCLE_RAD, pt[0]+CIRCLE_RAD)], outline="black", )
+        # points.save(filePath + '/out_points.png')
+        # # points.show()
         
 
-        # Export points
-        doc = ezdxf.new()
-        msp = doc.modelspace()
-        for pt in iterateOverFullMap(pointMap):
-            msp.add_circle((pt[1]*MM_PER_PIX, -pt[0]*MM_PER_PIX), CIRCLE_RAD)
+        # # Export points
+        # doc = ezdxf.new()
+        # msp = doc.modelspace()
+        # for pt in iterateOverFullMap(pointMap):
+        #     msp.add_circle((pt[1]*MM_PER_PIX, -pt[0]*MM_PER_PIX), CIRCLE_RAD*MM_PER_PIX)
 
-        doc.saveas(filePath+'/out_points.dxf')
-        doc.saveas('proc/currCircleArt.dxf')
+        # doc.saveas(filePath+'/out_points.dxf')
+        # # doc.saveas('proc/currCircleArt.dxf')
 
-        # Display tangent lines
+        # Generate tangent lines
+        sobelDir = np.arctan2(sobelHorz, sobelVert)
         sobelDir += np.pi/2
         xMagSet = np.cos(sobelDir)
         yMagSet = np.sin(sobelDir)
@@ -245,7 +257,7 @@ if __name__ == '__main__':
             xMag = xMagSet[*pt]
             yMag = yMagSet[*pt]
             tanLines.append([(pt[0] - xMag*TAN_LINE_RAD, pt[1] - yMag*TAN_LINE_RAD), (pt[0] + xMag*TAN_LINE_RAD, pt[1] + yMag*TAN_LINE_RAD)])
-        exportLines(tanLines, filePath+'/out_tanLines', inImg, MM_PER_PIX)
+        exportLines(tanLines, filePath+'/out_tangents', inImg, MM_PER_PIX)
 
         # Generate lines
         lineData = connectPoints(pointMap, subdivSize=SUBDIV_SIZE, subDivRad=SUBDIV_RAD, maxLineLen=MAX_LINE_LEN)
@@ -256,55 +268,94 @@ if __name__ == '__main__':
         for fooLine in lineData:
             for idx in range(len(fooLine)-1):
                 outLines.append([(fooLine[idx][0], fooLine[idx][1]), (fooLine[idx+1][0], fooLine[idx+1][1])])
-        exportLines(outLines, filePath+'/out_linesout_lines', inImg, MM_PER_PIX)
-        exportLines(outLines, 'proc/currLineArt', inImg, MM_PER_PIX)
+        exportLines(outLines, filePath+'/lines', inImg, MM_PER_PIX)
+        # exportLines(outLines, 'proc/currLineArt', inImg, MM_PER_PIX)
 
         # Generate lines
         lineData = connectPointsWithTangents(pointMap, sobelDir, sobelMag, sobelFactor=SOBEL_MULT, subdivSize=SUBDIV_SIZE, subDivRad=SUBDIV_RAD, maxLineLen=MAX_LINE_LEN)
         # lineData = pointsToLines(pointMap, subDivRad=SUBDIV_RAD, maxLineLen=MAX_LINE_LEN)
 
-        # Plot lines
-        pointLines = []
-        for fooLine in lineData:
-            for idx in range(len(fooLine)-1):
-                pointLines.append([(fooLine[idx][0], fooLine[idx][1]), (fooLine[idx+1][0], fooLine[idx+1][1])])
+        # # Plot lines
+        # pointLines = []
+        # for fooLine in lineData:
+        #     for idx in range(len(fooLine)-1):
+        #         pointLines.append([(fooLine[idx][0], fooLine[idx][1]), (fooLine[idx+1][0], fooLine[idx+1][1])])
 
-        exportLines(pointLines, filePath+'/out_tanLinesV2', inImg, MM_PER_PIX)
-        exportLines(pointLines, 'proc/currLineArt', inImg, MM_PER_PIX)
+        # exportLines(pointLines, filePath+'/tanConns', inImg, MM_PER_PIX)
+        # exportLines(pointLines, 'proc/currLineArt', inImg, MM_PER_PIX)
 
 
     if args.run != None:
         paths = pkl.load(open(filePath+'/'+args.run+'.pkl', 'rb'))
 
-        # Basic greedy optimizer
-        # paths = reorderPathsToMinimizeTravel(paths)
+        # # Flip paths
+        # for ii in range(len(paths))
+        #     for jj in range(2):
+        #         paths[ii][jj] = (paths[ii][jj][1], paths[ii][jj][0])
 
-        paths = np.array(paths) / 32
-        x = paths[:, :, 0]
-        y = paths[:, :, 1]
-        paths[:, :, 0] -= (np.max(x) - np.min(x)) / 2 + np.min(x)
-        paths[:, :, 1] -= (np.max(y) - np.min(y)) / 2 + np.min(y)
-
-        paths += 100
+        # paths[:, :, 0] -= (np.max(x) - np.min(x)) / 2 + np.min(x)
+        # paths[:, :, 1] -= (np.max(y) - np.min(y)) / 2 + np.min(y)
         
+        # Resize again just in case
+        paths = np.array(paths, dtype=np.double)
         x = paths[:, :, 0]
         y = paths[:, :, 1]
-        print(f"max x : {np.max(x)}")
+        
+        # Calculate scale factors
+        xRescale = (MAX_DIMS[0]*MM_PER_PIX) / (np.max(x)-np.min(x))
+        yRescale = (MAX_DIMS[1]*MM_PER_PIX) / (np.max(y)-np.min(y))
+
+        # Get min scale fact
+        scaleFact = xRescale
+        if yRescale < xRescale:
+            scaleFact = yRescale
+
+        paths[:, :, 0] = (x - np.min(x)) * scaleFact + LASER_X_MIN
+        paths[:, :, 1] = (y - np.min(y)) * scaleFact + LASER_Y_MIN
+
+        # Center
+        x = paths[:, :, 0]
+        y = paths[:, :, 1]
+        # print()
+        # print()
+        # print()
+        # print()
+        print(((MAX_DIMS[0]*MM_PER_PIX) - (np.max(x)-np.min(x))) / 2.0)
+        paths[:, :, 0] += ((MAX_DIMS[0]*MM_PER_PIX) - (np.max(x)-np.min(x))) / 2.0
+        paths[:, :, 1] += ((MAX_DIMS[1]*MM_PER_PIX) - (np.max(y)-np.min(y))) / 2.0
+
+        # paths[:, :, 0] = np.interp(x, [np.min(x), np.max(x)], [LASER_X_MIN, LASER_X_MIN + MAX_DIMS[0]*MM_PER_PIX])
+        # paths[:, :, 1] = np.interp(y, [np.min(y), np.max(y)], [LASER_Y_MIN, LASER_Y_MIN + MAX_DIMS[1]*MM_PER_PIX])
+
         print(f"min x : {np.min(x)}")
-        print(f"max y : {np.max(y)}")
+        print(f"max x : {np.max(x)}")
         print(f"min y : {np.min(y)}")
+        print(f"max y : {np.max(y)}")
 
-        # Resize
+        # Flip before sending
+        x = deepcopy(paths[:, :, 0])
+        y = deepcopy(paths[:, :, 1])
+        paths[:, :, 0] = y
+        paths[:, :, 1] = x
+        x = paths[:, :, 0]
+        y = paths[:, :, 1]
 
-        # Get picture from laser
-        f1.getPhoto(filePath+"/pic_before")
+        # # Basic greedy optimizer
+        # paths = reorderPathsToMinimizeTravel(list(paths))
+
 
         # Display on picture
 
         # Run lines on laser
-        f1.runLines(paths)
-
-        f1.getPhoto(filePath+"/pic_after")
+        f1.runLines(
+            paths,
+            Z = 0,   # mm
+            power = 60.0, # %
+            speed = 80.0, #mm/s
+        )
+            # Z = 0,   # mm
+            # power = 60.0, # %
+            # speed = 80.0, #mm/s
 
     if args.photo:
         f1.getPhoto(filePath+"/pic_photo")

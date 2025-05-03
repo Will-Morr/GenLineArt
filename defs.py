@@ -16,17 +16,40 @@ EDGE_KERNEL_RAD = 12
 EDGE_DARKENING_RATIO = 1.0
 
 STD_TRUNC_VAL = 13
-STD_IGNORE_BLUE = True
+STD_IGNORE_BLUE = False
 
-MAX_DIMS = [1000, 1000]
-MM_PER_PIX = 0.8
+BOXSIZE = '100mmSquare'
+# BOXSIZE = 'SmallTablet'
+# BOXSIZE = 'MaxSize'
+
+LASER_X_MIN = 45
+LASER_Y_MIN = 46
+
+LASER_HEIGHT = 0.0 # mm
+LASER_POWER = 60.0 # %
+LASER_SPEED = 80.0 # mm/s
+
+if BOXSIZE == '100mmSquare':
+    MAX_DIMS = [1000, 1000]
+    MM_PER_PIX = 0.1 # 100mm square
+
+elif BOXSIZE == 'SmallTablet':
+    MAX_DIMS = [800, 540]
+    MM_PER_PIX = 0.1 # 100mm square
+
+elif BOXSIZE == 'MaxSize':
+    LASER_X_MIN = 10
+    LASER_Y_MIN = 10
+    MAX_DIMS = [1000, 1000]
+    MM_PER_PIX = 0.2 # 100mm square
+
 
 
 # Line placement defs
 MAX_LINE_LEN = 30
-CIRCLE_RAD = 5  
+CIRCLE_RAD = 0.8
 
-CIRCLE_RAD *= MM_PER_PIX
+CIRCLE_RAD /= MM_PER_PIX
 
 # Linearity Defs
 SOBEL_PRE_SMOOTH_RAD = 4
