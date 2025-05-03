@@ -7,6 +7,7 @@ from copy import deepcopy
 from PIL import Image, ImageDraw
 import matplotlib.pyplot as plt 
 import ezdxf
+import pickle as pkl
 
 
 # Shorthand for magnitude of vector
@@ -235,5 +236,6 @@ def exportLines(inputLines, outputLabel, inImg, MM_PER_PIX):
         msp.add_line((fooLine[0][1]*MM_PER_PIX, - fooLine[0][0]*MM_PER_PIX), (fooLine[1][1]*MM_PER_PIX, - fooLine[1][0]*MM_PER_PIX), dxfattribs={"color": 2})
     
     lines.save(outputLabel+'.png')
+    pkl.dump(inputLines, outputLabel+'.pkl')
     # lines.show()
     doc.saveas(outputLabel+'.dxf')
