@@ -91,7 +91,7 @@ if __name__ == '__main__':
         # Actually adjust for whiteness
         pixelWhiteness /= stdev
         # backgroundVal = np.min(pixelWhiteness[:5, :])
-        backgroundVal = 200
+        backgroundVal = 150
         rawImg[pixelWhiteness > backgroundVal] = 255
 
         # Plot pixel whiteness
@@ -286,7 +286,12 @@ if __name__ == '__main__':
 
 
     if args.run != None:
-        paths = pkl.load(open(filePath+'/'+args.run+'.pkl', 'rb'))
+        filename = args.run
+        if len(args.run[:4].split('_')) == 1:
+            filename = "out_" + filename
+        print(f"Running {filename}")
+
+        paths = pkl.load(open(filePath+'/'+filename+'.pkl', 'rb'))
 
         # # Flip paths
         # for ii in range(len(paths))
@@ -320,7 +325,7 @@ if __name__ == '__main__':
         # print()
         # print()
         # print()
-        print(((MAX_DIMS[0]*MM_PER_PIX) - (np.max(x)-np.min(x))) / 2.0)
+
         paths[:, :, 0] += ((MAX_DIMS[0]*MM_PER_PIX) - (np.max(x)-np.min(x))) / 2.0
         paths[:, :, 1] += ((MAX_DIMS[1]*MM_PER_PIX) - (np.max(y)-np.min(y))) / 2.0
 
@@ -340,22 +345,22 @@ if __name__ == '__main__':
         x = paths[:, :, 0]
         y = paths[:, :, 1]
 
-        # # Basic greedy optimizer
-        # paths = reorderPathsToMinimizeTravel(list(paths))
-
+        # Basic greedy optimizer
+        paths = reorderPathsToMinimizeTravel(list(paths))
 
         # Display on picture
+
+        if filename == "out_points":
+            LASER_SPEED *= 2
+
 
         # Run lines on laser
         f1.runLines(
             paths,
-            Z = 0,   # mm
-            power = 60.0, # %
-            speed = 80.0, #mm/s
+            Z = LASER_HEIGHT,   # mm
+            power = LASER_POWER, # %
+            speed = LASER_SPEED, #mm/s
         )
-            # Z = 0,   # mm
-            # power = 60.0, # %
-            # speed = 80.0, #mm/s
 
     if args.photo:
         f1.getPhoto(filePath+"/pic_photo")
