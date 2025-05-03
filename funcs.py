@@ -8,6 +8,8 @@ from PIL import Image, ImageDraw
 import matplotlib.pyplot as plt 
 import ezdxf
 import pickle as pkl
+import cv2
+from scipy.ndimage import convolve
 
 
 # Shorthand for magnitude of vector
@@ -377,3 +379,44 @@ def reorderPathsToMinimizeTravel(pathList, joinPaths=True):
             outputPathList.append(nextPath)
 
     return(outputPathList)
+
+def postProcImage(inputImg, lines):
+    if type(inputImg) != np.ndarray:
+        img = cv2.cvtColor(np.array(inputImg), cv2.COLOR_RGB2BGR)
+    else:
+        img = inputImg
+
+    # img = img[1310:3320, 770:2900]
+    img = img[770:2850, 1310:3320]
+
+    img_gray = np.array(np.average(img, axis=2), dtype=np.uint8)
+
+    cv2.imwrite("tmp/crop.png", img_gray)
+
+    # kernelRad = 20
+    # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(kernelRad*2+1, kernelRad*2+1))
+    # smooth_img = convolve(np.array(img_gray, dtype=np.int32), kernel) / np.sum(kernel)
+    # cv2.imwrite("tmp/smooth_img.png", smooth_img)
+
+
+    img_sel = np.zeros_like(img_gray)
+    img_sel[img_gray > 250] = 255
+    cv2.imwrite("tmp/img_sel.png", img_gray)
+
+    # Dead simple CV
+    xSum = np.where(np.sum(img, axis=0) > 50000)
+    ySum = np.where(np.sum(img, axis=1) > 50000)
+    bounds = ((xSum[0], ySum[0]), (xSum[-1], ySum[-1]))
+
+    return img_sel, bounds
+
+    # # Get picture from laser
+    # img = f1.getPhoto(filePath+"/pic_before")
+    # selImg, bounds = postProcImage(img) 
+    # # 50 px per mm
+    # # dead cent is 2300 x 2800 px, 110x100 mm
+    # bounds = np.array(bounds, dtype=np.double)
+    # bounds[:, 0] -= 2300
+    # bounds[:, 1] -= 2300
+    # bounds /= 50.0
+

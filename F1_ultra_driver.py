@@ -4,6 +4,7 @@ import random
 import math
 import tarfile
 import io
+from PIL import Image
 
 header = """# date=2025_01_30_19_01_47
 # version=2.4.27
@@ -173,7 +174,7 @@ def getPhoto(outPath = None):
             f.write(data.content)
             f.close()
 
-    return data
+    return Image.open(io.BytesIO(data.content))
 
 def runLines(inputLines):
     # data = '{"action":"goTo","z":20.0,"stopFirst":1,"F":5000}'
