@@ -5,7 +5,7 @@ SUBDIV_RAD = 2
 # Placement defs
 MAX_VAL = 250
 MIN_DIST =  5
-SCALE_FACT = 20.0
+SCALE_FACT = 10.0
 
 # Enableable stuff
 DO_IMAGE_LINEARIZATION = False

@@ -64,14 +64,10 @@ M6 P1
 
 """
 
-# x0,y0,x1,y1 by N
-N = 100
-the_lines = np.random.random(size=(N, 4))*50.0
-
-def make_cut_gcode(the_lines = the_lines,
+def make_cut_gcode(paths,
         Z = 20.0,   # mm
-        power = 100.0, # %
-        speed = 10000.0, #mm/s  
+        power = 60.0, # %
+        speed = 50.0, #mm/s  
     ):
     # G0 move XY
     # G1 cut, XY s=power, f=feedrate
@@ -80,43 +76,38 @@ def make_cut_gcode(the_lines = the_lines,
     # Put your gcode here
     
     contents = f"""
-    # Do this when the laser changes:
-    # GS002 VECTOR HEAD
-    # motion_start
-    G4M1
-    #G21=Blue or G22=fiber for which laser to use
-    G21
-    G90
-    G0Q30
+# Do this when the laser changes:
+# GS002 VECTOR HEAD
+# motion_start
+G4M1
+#G21=Blue or G22=fiber for which laser to use
+G21
+G90 # Absolute moves for laser
+G0Q30 # 30 kHz for fiber laser
 
-    G4M1
-    M523P40
+G4M1
+M523P40
 
-    # Z move
-    G102
-    #G91 #incremental
-    G0Z{Z}F600
-    #G90 #absolute
-    G103
-    G0F180000
+# Z move
+# G102
+#G91 #incremental
+# G0Z{Z}F600
+# G90 #absolute
+# G103
+# G0F180000
+"""
 
-    """
     def round3(v):
         return round(v, 3) 
 
-    center = np.array([110, 110])
-    center4 = np.concatenate([center, center])
-
     parts = []
 
-    def append_segment(x0,y0, x1, y1):
-        a = f"G0X{round3(x0)}Y{round3(y0)}"
-        b = f"G1X{round3(x1)}Y{round3(y1)}S{power*10.0}F{speed*60.0}"
-        parts.append(a)
-        parts.append(b)
-
-    for segment in the_lines:
-        append_segment(*(segment+center4)) # Unpack to x0,y0,x1,y1
+    for fooPath in paths:
+        x0, y0 = fooPath[0]
+        parts.append(f"G0X{round3(x0)}Y{round3(y0)}")
+        
+        for x, y in fooPath[1:]:
+            parts.append(f"G1X{round3(x)}Y{round3(y)}S{power*10.0}F{speed*60.0}")
 
     parts.append("")
 
@@ -129,7 +120,7 @@ def make_cut_gcode(the_lines = the_lines,
     return contents
 
 def make_xf(contents):
-    filename = "F1 Ultra-template.xf"
+    filename = "F1-Ultra-template.xf"
     t = tarfile.open(filename, 'r')
     files = t.getmembers()
 
@@ -164,35 +155,43 @@ def make_xf(contents):
     tar_fileobj.seek(0)
     return tar_fileobj.read()
 
-xf_data = make_xf(make_cut_gcode(the_lines))
 
 
 # The url to use
 base_url = "http://192.168.1.239"
+
+
 # Get the camera image (a jpg) with the same settings that xtool uses
-data = requests.get(f"{base_url}:8329/camera/snap?width=4656&height=3496&timeOut=30000")
+def getPhoto(outPath = None):
+    data = requests.get(f"{base_url}:8329/camera/snap?width=4656&height=3496&timeOut=30000")
 
-# The jpg data
-print(data.content)
-# Save it to a file
-with open("camera_apture.jpg", "wb") as f:
-    f.write(data.content)
-    f.close()
+    # # The jpg data
+    # print(data.content)
+    # # Save it to a file
+    if outPath != None:
+        with open(outPath+".jpg", "wb") as f:
+            f.write(data.content)
+            f.close()
 
-data = '{"action":"goTo","z":20.0,"stopFirst":1,"F":5000}'
-requests.put(f"{base_url}:8080/focus/control", data=data)
+    return data
 
-"""
-POST /processing/upload?gcodeType=processing&fileType=xf&taskId=PC_F1Ultra_MXFK002B2024072307949AB_1740275842761&autoStart=0 HTTP/1.1
-Accept: application/json, text/plain, */*
-Content-Type: application/octet-stream
-Content-Length: 7680
-User-Agent: axios/1.7.7
-Accept-Encoding: gzip, compress, deflate, br
-Host: 192.168.1.233:8080
-Connection: close
-"""
+def runLines(inputLines):
+    # data = '{"action":"goTo","z":20.0,"stopFirst":1,"F":5000}'
+    # requests.put(f"{base_url}:8080/focus/control", data=data)
 
-the_file_contents = xf_data # open("the_test_file.xf", "rb").read()
-ok = requests.post(f"{base_url}:8080/processing/upload?gcodeType=processing&fileType=xf&taskId=PC_F1Ultra_MXFK002B2024072307949AB_1740275842761&autoStart=1", data=the_file_contents)
-print("ok? = ", ok)
+    """
+    POST /processing/upload?gcodeType=processing&fileType=xf&taskId=PC_F1Ultra_MXFK002B2024072307949AB_1740275842761&autoStart=0 HTTP/1.1
+    Accept: application/json, text/plain, */*
+    Content-Type: application/octet-stream
+    Content-Length: 7680
+    User-Agent: axios/1.7.7
+    Accept-Encoding: gzip, compress, deflate, br
+    Host: 192.168.1.233:8080
+    Connection: close
+    """
+
+    xf_data = make_xf(make_cut_gcode(inputLines))
+    # the_file_contents = xf_data # open("the_test_file.xf", "rb").read()
+    ok = requests.post(f"{base_url}:8080/processing/upload?gcodeType=processing&fileType=xf&taskId=PC_F1Ultra_MXFK002B2024072307949AB_1740275842761&autoStart=1", data=xf_data)
+    print("ok? = ", ok)
+    

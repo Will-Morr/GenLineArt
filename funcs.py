@@ -227,7 +227,7 @@ def connectPointsWithTangents(inputPointMap, sobelDir, sobelMag, sobelFactor = 1
 def convertToPairs(inLines):
     return [[(x[0], x[1]), (x[2], x[3])] for x in inLines]
 
-def squareRecreation(imgArr, offset = 1.5, divMode="MIDPOINT"):
+def squareRecreation(imgArr, offset = 2.0, divMode="MIDPOINT"):
     # Load input data
     iW, iH = imgArr.shape
 
@@ -265,7 +265,7 @@ def squareRecreation(imgArr, offset = 1.5, divMode="MIDPOINT"):
         # minShadeThresh *= currFrac
 
 
-        print(f"{len(cellList): 8d} : {fooCell} {avgShade: 3.2f} {currFrac: 3.2f} {netShade: 12d}")
+        print(f"{len(cellList): 8d} : {fooCell} {avgShade: 3.2f} {currFrac: 3.2f} {netShade: 12.2f}")
 
         # divThreshInterp = np.swapaxes([
         #     [1e3, 0.0, 0.0],
@@ -329,3 +329,51 @@ def exportLines(inputLines, outputLabel, inImg, MM_PER_PIX, imgScale=6):
     pkl.dump(inputLines, open(outputLabel+'.pkl', 'wb'))
     # lines.show()
     doc.saveas(outputLabel+'.dxf')
+
+# Yoinked from Pretuft Project
+def reorderPathsToMinimizeTravel(pathList, joinPaths=True):
+    # Remove paths with no points
+    idx = 0
+    while idx < len(pathList):
+        if len(pathList[idx]) == 0:
+            pathList.pop(idx)
+        else:
+            idx += 1
+            
+    # If there is only one path just return that
+    if len(pathList) <= 1: return(pathList)
+
+    # Start output path with only first path, which should be the outline
+    outputPathList = [pathList[0]]
+    startPoints = np.array([foo[0] for foo in pathList[1:]])
+    endPoints = np.array([foo[-1] for foo in pathList[1:]])
+
+    # Starting point is end of outline
+    currPt = pathList[0][-1]
+    remainingPaths = deepcopy(pathList[1:])
+    while len(remainingPaths) > 0:
+        startPointDists = np.array([np.linalg.norm(startPoints - currPt, axis=1), np.linalg.norm(endPoints - currPt, axis=1)])
+
+        # Get closest point
+        minDist = np.min(startPointDists)
+        minIdx = np.argmin(startPointDists) # Returns min of flattened array
+        endIsCloser = (minIdx>=len(startPoints))
+        if endIsCloser:
+            minIdx -= len(startPoints)
+
+        # Remove closest points
+        startPoints = np.delete(startPoints, minIdx, axis=0)
+        endPoints = np.delete(endPoints, minIdx, axis=0)
+        nextPath = remainingPaths.pop(minIdx)
+
+        if endIsCloser:
+            nextPath = np.flip(nextPath, axis=0)
+
+        currPt = nextPath[-1]
+        if joinPaths and minDist < 0.0001:
+            print(f"   Joining paths")
+            outputPathList[-1] = np.concatenate([outputPathList[-1], nextPath])
+        else:
+            outputPathList.append(nextPath)
+
+    return(outputPathList)
