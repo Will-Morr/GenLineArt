@@ -68,7 +68,7 @@ M6 P1
 N = 100
 the_lines = np.random.random(size=(N, 4))*50.0
 
-def make_cut_gcode(paths,
+def make_cut_gcode(the_lines = the_lines,
         Z = 20.0,   # mm
         power = 100.0, # %
         speed = 10000.0, #mm/s  
@@ -104,14 +104,19 @@ def make_cut_gcode(paths,
     def round3(v):
         return round(v, 3) 
 
+    center = np.array([110, 110])
+    center4 = np.concatenate([center, center])
+
     parts = []
 
-    for fooPath in paths:
-        x0, y0 = fooPath[0]
-        parts.append(f"G0X{round3(x0)}Y{round3(y0)}")
-        
-        for x, y in fooPath[1:]:
-            parts.append(f"G1X{round3(x)}Y{round3(y)}S{power*10.0}F{speed*60.0}")
+    def append_segment(x0,y0, x1, y1):
+        a = f"G0X{round3(x0)}Y{round3(y0)}"
+        b = f"G1X{round3(x1)}Y{round3(y1)}S{power*10.0}F{speed*60.0}"
+        parts.append(a)
+        parts.append(b)
+
+    for segment in the_lines:
+        append_segment(*(segment+center4)) # Unpack to x0,y0,x1,y1
 
     parts.append("")
 
