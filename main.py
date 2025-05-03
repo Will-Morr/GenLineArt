@@ -40,6 +40,7 @@ if __name__ == '__main__':
 
     # Load array of raw pixels
     rawImg = np.array(inImg.convert('L'))
+    rawGrayScale = deepcopy(rawImg)
     saveArbitraryImage(rawImg, filePath+'/img_rawGrayScale.png')
 
     # Plot hist of input image values if requested
@@ -187,15 +188,17 @@ if __name__ == '__main__':
     rawImg[whitePts] = 255
     Image.fromarray(rawImg, mode='L').save(filePath + '/img_grey.png')
 
+    outLines = squareRecreation(rawImg)
+    # outLines = squareRecreation(rawGrayScale)
+    print(f"{len(outLines) / 4} squares")
+    exportLines(outLines, filePath+'/out_squares', inImg, MM_PER_PIX)
+
     # Plot image edge selection distribution
     plt.cla()
     shadePts = rawImg.flatten()
     plt.hist(shadePts[shadePts < 255], bins=256)
     plt.title("Distribution of shade in final greyscale image")
     plt.savefig(filePath + '/plt_shadeDist.png')
-
-
-    exit()
 
     # Convert to pts
     pointMap = convertToPoints(rawImg, skipToEveryNth=SKIP_TO_NTH, subdivSize=SUBDIV_SIZE, subDivRad=SUBDIV_RAD, maxVal=MAX_VAL, minDist=MIN_DIST, scaleFact=SCALE_FACT)
