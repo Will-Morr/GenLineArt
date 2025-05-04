@@ -229,11 +229,11 @@ def connectPointsWithTangents(inputPointMap, sobelDir, sobelMag, sobelFactor = 1
 def convertToPairs(inLines):
     return [[(x[0], x[1]), (x[2], x[3])] for x in inLines]
 
-def squareRecreation(imgArr, offset = 2.0, divMode="MIDPOINT"):
+def squareRecreation(imgArr, sobelHorz, sobelVert, offset = 2.0, divMode="MIDPOINT"):
     # Load input data
     iW, iH = imgArr.shape
 
-    cellList = [[0, 0, iW, iH]]
+    cellList = [[0, 0, iW, iH, 0.0]]
     outputLines = []
 
     while len(cellList) > 0:
@@ -242,6 +242,7 @@ def squareRecreation(imgArr, offset = 2.0, divMode="MIDPOINT"):
         y0 = fooCell[1]
         x1 = fooCell[2]
         y1 = fooCell[3]
+        prevFrac = fooCell[4]
         
         # Get subset of image that is current shape
         cellSubset = imgArr[int(np.floor(x0)):int(np.ceil(x1)), int(np.floor(y0)):int(np.ceil(y1))]
@@ -249,26 +250,31 @@ def squareRecreation(imgArr, offset = 2.0, divMode="MIDPOINT"):
         cellCount = cellSubset.shape[0]*cellSubset.shape[1]
         netShade = (cellCount*255) - cellSums
         avgShade = netShade / float(cellCount*255)
+
+        avgShade = (255.0-np.median(cellSubset)) / 255.0
         
         if cellCount == 0: continue
-        
+        exitLoop = False
+        for foo in cellSubset.shape:
+            if foo < 3:
+                exitLoop = True
+        if exitLoop: continue
         
         # Check if dividing
-        reqShadeThresh = 1.0
-        minShadeThresh = 0.8
+        reqShadeThresh = 0.9    
+        # minShadeThresh = 1.0
+        
 
         borderCount = (cellSubset.shape[0]-offset*2)*(cellSubset.shape[1]-offset*2)
         currFrac = (cellCount - borderCount) / cellCount
         if borderCount < 0 or currFrac < 0.0: continue
         reqShadeThresh *= currFrac
+        # minShadeThresh *= np.sqrt(currFrac)
 
-        # currFrac = np.sqrt(currFrac)
-        
-        # minShadeThresh *= currFrac
+        print(f"{len(cellList): 8d} : {avgShade: 3.2f} {currFrac: 3.2f} {netShade: 12.2f} {prevFrac: 3.2f} {fooCell[:4]}")
 
-
-        print(f"{len(cellList): 8d} : {fooCell} {avgShade: 3.2f} {currFrac: 3.2f} {netShade: 12.2f}")
-
+        subsetHorz = sobelHorz[int(np.floor(x0)):int(np.ceil(x1)), int(np.floor(y0)):int(np.ceil(y1))]
+        subsetVert = sobelVert[int(np.floor(x0)):int(np.ceil(x1)), int(np.floor(y0)):int(np.ceil(y1))]
         # divThreshInterp = np.swapaxes([
         #     [1e3, 0.0, 0.0],
         #     [1e2, 0.1, 0.1],
@@ -276,12 +282,17 @@ def squareRecreation(imgArr, offset = 2.0, divMode="MIDPOINT"):
         #     [1, 0.4, 0.8],
         # ], 0, 1)
 
+        shadeOffset = 0.2 * (1.0 - currFrac)
+
         # reqShadeThresh = np.interp(
         #     cellCount,
         # )
 
+        drawOutline = ((avgShade - shadeOffset) > (prevFrac + currFrac))
+        # drawOutline = True
+
         # if netShade > 255*divFactor or avgShade > reqShadeThresh:
-        if avgShade > reqShadeThresh:
+        if cellSums > 2000:
             if divMode == "CENTER":
                 xSplit = (x0+x1)/2
                 ySplit = (y0+y1)/2
@@ -290,27 +301,33 @@ def squareRecreation(imgArr, offset = 2.0, divMode="MIDPOINT"):
                 xSplit = np.interp(float(xCum[-1])/2, xCum, np.arange(cellSubset.shape[0])) + x0
                 yCum = np.cumsum(np.sum(cellSubset, axis=0))
                 ySplit = np.interp(float(yCum[-1])/2, yCum, np.arange(cellSubset.shape[1])) + y0
+            elif divMode == "SOBEL":
+                xSplit = np.argmax(np.sum(np.abs(subsetVert), axis=1)* np.interp(np.arange(cellSubset.shape[0]), [x0, x0+x1/2, x1], [0.0, 1.0, 0.0])) + x0
+                ySplit = np.argmax(np.sum(np.abs(subsetHorz), axis=0)* np.interp(np.arange(cellSubset.shape[1]), [y0, y0+y1/2, y1], [0.0, 1.0, 0.0])) + y0
             else:
                 print(f"divMode {divMode} not real")
                 exit()
 
+            nextFrac = prevFrac
+            if False:
+                nextFrac += currFrac
+                cellList.append(np.array([x0+offset, y0+offset, xSplit-offset/2.0, ySplit-offset/2.0, nextFrac]))
+                cellList.append(np.array([x0+offset, ySplit+offset/2.0, xSplit-offset/2.0, y1-offset, nextFrac]))
+                cellList.append(np.array([xSplit+offset/2.0, y0+offset, x1-offset, ySplit-offset/2.0, nextFrac]))
+                cellList.append(np.array([xSplit+offset/2.0, ySplit+offset/2.0, x1-offset, y1-offset, nextFrac]))
+            else:
+                cellList.append(np.array([x0, y0, xSplit-offset/2.0, ySplit-offset/2.0, nextFrac]))
+                cellList.append(np.array([x0, ySplit+offset/2.0, xSplit-offset/2.0, y1, nextFrac]))
+                cellList.append(np.array([xSplit+offset/2.0, y0, x1, ySplit-offset/2.0, nextFrac]))
+                cellList.append(np.array([xSplit+offset/2.0, ySplit+offset/2.0, x1, y1, nextFrac]))
 
-            cellList.append(np.array([x0+offset, y0+offset, xSplit-offset, ySplit-offset]))
-            cellList.append(np.array([x0+offset, ySplit+offset, xSplit-offset, y1-offset]))
-            cellList.append(np.array([xSplit+offset, y0+offset, x1-offset, ySplit-offset]))
-            cellList.append(np.array([xSplit+offset, ySplit+offset, x1-offset, y1-offset]))
-
-        else:
+        # elif drawOutline:
+        if drawOutline:
             outputLines.append([x0, y0, x0, y1])
             outputLines.append([x1, y0, x1, y1])
             outputLines.append([x0, y0, x1, y0])
             outputLines.append([x0, y1, x1, y1])
 
-        if avgShade > minShadeThresh:
-            outputLines.append([x0, y0, x0, y1])
-            outputLines.append([x1, y0, x1, y1])
-            outputLines.append([x0, y0, x1, y0])
-            outputLines.append([x0, y1, x1, y1])
 
     return convertToPairs(outputLines)
 

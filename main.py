@@ -208,7 +208,7 @@ if __name__ == '__main__':
         plt.savefig(filePath + '/plt_shadeDist.png')
 
     if args.box:
-        outLines = squareRecreation(rawImg)
+        outLines = squareRecreation(rawImg, sobelHorz, sobelVert, divMode='MIDPOINT')
         # outLines = squareRecreation(rawGrayScale)
         print(f"{len(outLines) / 4} squares")
         exportLines(outLines, filePath+'/out_squares', inImg, MM_PER_PIX)
