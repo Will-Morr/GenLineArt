@@ -111,48 +111,55 @@ if __name__ == '__main__':
         sobelKernel[:, :SOBEL_KERNEL_RAD] *= -1
 
         sobelSmoothKernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(SOBEL_PRE_SMOOTH_RAD*2+1, SOBEL_PRE_SMOOTH_RAD*2+1))
-        
+
+        # Do sobel on RBG channels and sum
         if SOBEL_DO_RGB:
-            rawImg_smoothed = convolve2dToNd(np.array(inImg, dtype=np.int32), sobelSmoothKernel) / np.sum(sobelSmoothKernel)
+            # Pre-smooth? 
+            if SOBEL_PRE_SMOOTH_RAD > 0.0:
+                presobelImg = convolve2dToNd(np.array(inImg, dtype=np.int32), sobelSmoothKernel) / np.sum(sobelSmoothKernel)
+            else:
+                presobelImg = np.array(inImg, dtype=np.int32)
 
-            sobelHorz = convolve2dToNd(np.array(rawImg_smoothed, dtype=np.int32), sobelKernel)
-            # sobelHorz = np.sum(np.abs(sobelHorz), axis=2)
-            sobelHorz = np.sum(sobelHorz, axis=2)
-            sobelVert = convolve2dToNd(np.array(rawImg_smoothed, dtype=np.int32), np.swapaxes(sobelKernel, 0, 1))
-            sobelVert = np.sum(np.abs(sobelVert), axis=2)
+            sobelHorz = convolve2dToNd(presobelImg, sobelKernel)
+            sobelHorz = np.sum(sobelHorz, axis=2) / 3.0
+            sobelVert = convolve2dToNd(presobelImg, np.swapaxes(sobelKernel, 0, 1))
+            sobelVert = np.sum(np.abs(sobelVert), axis=2) / 3.0
+
+        # Do sobel on grayscale
         else:
-            rawImg_smoothed = convolve(np.array(rawImg, dtype=np.int32), sobelSmoothKernel) / np.sum(sobelSmoothKernel)
+            # Pre-smooth? 
+            if SOBEL_PRE_SMOOTH_RAD > 0.0:
+                presobelImg = convolve(np.array(rawImg, dtype=np.int32), sobelSmoothKernel) / np.sum(sobelSmoothKernel)
+            else:
+                presobelImg = np.array(inImg, dtype=np.int32)
 
-            sobelHorz = convolve(np.array(rawImg_smoothed, dtype=np.int32), sobelKernel)
+            sobelHorz = convolve(np.array(presobelImg, dtype=np.int32), sobelKernel)
             # sobelHorz = np.abs(sobelHorz)
-            sobelVert = convolve(np.array(rawImg_smoothed, dtype=np.int32), np.swapaxes(sobelKernel, 0, 1))
+            sobelVert = convolve(np.array(presobelImg, dtype=np.int32), np.swapaxes(sobelKernel, 0, 1))
             sobelVert = np.abs(sobelVert)
 
-
+        # Display direction of sobel
         sobelImg = np.zeros_like(inImg, dtype=np.int32)
         sobelImg[:, :, 0] = sobelHorz # + np.min(sobelHorz)
         sobelImg[:, :, 2] = sobelVert # + np.min(sobelVert)
-        sobelImg[:, :, 1] = np.min([sobelVert, sobelHorz])
+        sobelImg[:, :, 1] = np.min([sobelVert, sobelHorz], axis=0)
         saveArbitraryImage(sobelImg, filePath+'/img_sobel.png', mode='RGB')
 
+        # Display magnitude of XY componnents of sobel
         sobelMag = np.zeros_like(inImg, dtype=np.int32)
         sobelMag[:, :, 0] = np.abs(sobelHorz) # + np.min(sobelHorz)
         sobelMag[:, :, 1] = np.abs(sobelVert) # + np.min(sobelVert)
         # sobelMag[:, :, 2] = np.min([np.abs(sobelVert), np.abs(sobelHorz)])
         saveArbitraryImage(sobelMag, filePath+'/img_sobelMag.png', mode='RGB')
 
-        sobelNetSmoothingKernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(SOBEL_NET_SMOOTH_RAD*2+1, SOBEL_NET_SMOOTH_RAD*2+1))
-        sobelMag = convolve2dToNd(sobelMag, sobelNetSmoothingKernel)
+        # Smooth if requested
+        if SOBEL_NET_SMOOTH_RAD > 0.0:
+            sobelNetSmoothingKernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(SOBEL_NET_SMOOTH_RAD*2+1, SOBEL_NET_SMOOTH_RAD*2+1))
+            sobelMag = convolve2dToNd(sobelMag, sobelNetSmoothingKernel)
 
         sobelDir = np.arctan2(sobelHorz, sobelVert)
 
-        # sobelHorz = np.array(sobelHorz, dtype=np.double) / (sobelMag + np.average(sobelMag))
-        # sobelVert = np.array(sobelVert, dtype=np.double) / (sobelMag + np.average(sobelMag))
-
-        # sobelImg = np.zeros_like(inImg, dtype=np.double)
-        # sobelImg[:, :, 0] = sobelHorz
-        # sobelImg[:, :, 1] = sobelVert
-        saveArbitraryImage(sobelDir - np.min(sobelDir), filePath+'/img_sobelAdjusted.png')
+        saveArbitraryImage(sobelDir, filePath+'/img_sobelAdjusted.png')
         # saveArbitraryImage(sobelDir + np.min(sobelDir), filePath+'/img_sobelAdjusted.png', mode='RGB')
         
         adjustImg = np.array(rawImg, dtype=np.double)
