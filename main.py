@@ -91,7 +91,7 @@ if __name__ == '__main__':
         # Actually adjust for whiteness
         pixelWhiteness /= stdev
         # backgroundVal = np.min(pixelWhiteness[:5, :])
-        backgroundVal = 150
+        backgroundVal = 135
         rawImg[pixelWhiteness > backgroundVal] = 255
 
         # Plot pixel whiteness

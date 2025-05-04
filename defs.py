@@ -48,9 +48,10 @@ elif BOXSIZE == 'MaxSize':
     MM_PER_PIX = 0.2 # 100mm square
 
 
-    # LASER_HEIGHT = 0.0 # mm
-    # LASER_POWER = 80.0 # %
-    # LASER_SPEED = 900.0 # mm/s
+# # Fiber laser params
+# LASER_HEIGHT = 0.0 # mm
+# LASER_POWER = 100.0 # %
+# LASER_SPEED = 600.0 # mm/s
 
 # Line placement defs
 MAX_LINE_LEN = 30
