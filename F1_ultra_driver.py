@@ -159,7 +159,7 @@ def make_xf(contents):
 
 
 # The url to use
-base_url = "http://192.168.1.239"
+base_url = "http://192.168.1.210"
 
 
 # Get the camera image (a jpg) with the same settings that xtool uses
@@ -202,3 +202,5 @@ def runLines(
     ok = requests.post(f"{base_url}:8080/processing/upload?gcodeType=processing&fileType=xf&taskId=PC_F1Ultra_MXFK002B2024072307949AB_1740275842761&autoStart=1", data=xf_data)
     print("ok? = ", ok)
     
+if __name__ == '__main__':
+    getPhoto('tmp')
