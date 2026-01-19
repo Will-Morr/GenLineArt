@@ -9,7 +9,7 @@ from copy import deepcopy
 from PIL import Image, ImageDraw
 import cv2
 import argparse
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 
 from funcs import *
 from defs import *
@@ -90,12 +90,11 @@ if __name__ == '__main__':
 
         # Actually adjust for whiteness
         pixelWhiteness /= stdev
-        # backgroundVal = np.min(pixelWhiteness[:5, :])
-        backgroundVal = 135
-        rawImg[pixelWhiteness > backgroundVal] = 255
+        # BACKGROUND_THRESHOLD = np.min(pixelWhiteness[:5, :])
+        rawImg[pixelWhiteness > BACKGROUND_THRESHOLD] = 255
 
         # Plot pixel whiteness
-        pixelWhiteness[pixelWhiteness > backgroundVal] *= 4
+        pixelWhiteness[pixelWhiteness > BACKGROUND_THRESHOLD] *= 4
         saveArbitraryImage(pixelWhiteness, filePath+'/img_whiteness.png')
 
         # Approximate gradient
@@ -115,7 +114,7 @@ if __name__ == '__main__':
         # Do sobel on RBG channels and sum
         if SOBEL_DO_RGB:
             # Pre-smooth? 
-            if SOBEL_PRE_SMOOTH_RAD > 0.0:
+            if SOBEL_PRE_SMOOTH_RAD > 0:
                 presobelImg = convolve2dToNd(np.array(inImg, dtype=np.int32), sobelSmoothKernel) / np.sum(sobelSmoothKernel)
             else:
                 presobelImg = np.array(inImg, dtype=np.int32)
@@ -123,7 +122,7 @@ if __name__ == '__main__':
             sobelHorz = convolve2dToNd(presobelImg, sobelKernel)
             sobelHorz = np.sum(sobelHorz, axis=2) / 3.0
             sobelVert = convolve2dToNd(presobelImg, np.swapaxes(sobelKernel, 0, 1))
-            sobelVert = np.sum(np.abs(sobelVert), axis=2) / 3.0
+            sobelVert = np.sum(sobelVert, axis=2) / 3.0
 
         # Do sobel on grayscale
         else:
@@ -136,7 +135,7 @@ if __name__ == '__main__':
             sobelHorz = convolve(np.array(presobelImg, dtype=np.int32), sobelKernel)
             # sobelHorz = np.abs(sobelHorz)
             sobelVert = convolve(np.array(presobelImg, dtype=np.int32), np.swapaxes(sobelKernel, 0, 1))
-            sobelVert = np.abs(sobelVert)
+            # sobelVert = np.abs(sobelVert)
 
         # Display direction of sobel
         sobelImg = np.zeros_like(inImg, dtype=np.int32)
@@ -158,8 +157,19 @@ if __name__ == '__main__':
             sobelMag = convolve2dToNd(sobelMag, sobelNetSmoothingKernel)
 
         sobelDir = np.arctan2(sobelHorz, sobelVert)
+        sobelMag = np.sqrt(np.square(sobelHorz) + np.square(sobelVert))
 
-        saveArbitraryImage(sobelDir, filePath+'/img_sobelAdjusted.png')
+        # Neat display of sobel direction
+        # Represents direction where pure red is down, pure green is 30 deg above left, and pure blue is 30 deg above right
+        sobelDirOut = np.zeros_like(inImg, dtype=np.double)
+        sobelDirOut[:, :, 0] = sobelDir + 0.0
+        sobelDirOut[:, :, 1] = sobelDir + np.pi*2/3
+        sobelDirOut[:, :, 2] = sobelDir + np.pi*4/3
+        sobelDirOut[sobelDirOut > np.pi] -= 2*np.pi
+        sobelDirOut = sobelDirOut * (sobelMag/np.max(sobelMag))[:, :, None]
+        sobelDirOut = np.int32(np.abs(sobelDirOut)*1000)
+        saveArbitraryImage(sobelDirOut, filePath+'/img_sobelAdjusted.png', mode='RGB')
+
         # saveArbitraryImage(sobelDir + np.min(sobelDir), filePath+'/img_sobelAdjusted.png', mode='RGB')
         
         adjustImg = np.array(rawImg, dtype=np.double)
@@ -258,7 +268,12 @@ if __name__ == '__main__':
         sobelDir += np.pi/2
         xMagSet = np.cos(sobelDir)
         yMagSet = np.sin(sobelDir)
+
+        saveArbitraryImage(sobelDir, filePath+'/img_sobelDir.png')
         
+        plt.hist(sobelDir.flatten())
+        plt.savefig(filePath + '/plt_sobelDirHist.png')
+
         tanLines = []
         for pt in iterateOverFullMap(pointMap):
             xMag = xMagSet[*pt]
