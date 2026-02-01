@@ -332,7 +332,7 @@ def squareRecreation(imgArr, sobelHorz, sobelVert, offset = 2.0, divMode="MIDPOI
     return convertToPairs(outputLines)
 
 
-def exportLines(inputLines, outputLabel, inImg, MM_PER_PIX, imgScale=6):
+def exportLines(inputLines, outputLabel, inImg, MM_PER_PIX, imgScale=2, line_width=0.36496350364963503):
     print(inImg.size)
     lines = Image.new("RGB", (inImg.size[0]*imgScale, inImg.size[1]*imgScale), "white")
     draw = ImageDraw.Draw(lines)
@@ -341,7 +341,7 @@ def exportLines(inputLines, outputLabel, inImg, MM_PER_PIX, imgScale=6):
     msp = doc.modelspace()
     
     for fooLine in inputLines:
-        draw.line([(imgScale*fooLine[0][1], imgScale*fooLine[0][0]), (imgScale*fooLine[1][1], imgScale*fooLine[1][0])], fill="black", width=2)
+        draw.line([(imgScale*fooLine[0][1], imgScale*fooLine[0][0]), (imgScale*fooLine[1][1], imgScale*fooLine[1][0])], fill="black", width=round(line_width/MM_PER_PIX))
         msp.add_line((fooLine[0][1]*MM_PER_PIX, - fooLine[0][0]*MM_PER_PIX), (fooLine[1][1]*MM_PER_PIX, - fooLine[1][0]*MM_PER_PIX), dxfattribs={"color": 2})
     
     lines.save(outputLabel+'.png')

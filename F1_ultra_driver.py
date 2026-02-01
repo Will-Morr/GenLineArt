@@ -25,15 +25,6 @@ M4 S0
 G1 F180000
 G0 X0 Y0
 
-
-
-
-
-
-
-
-
-
 G102
 G91
 #G0Z4F600
@@ -108,7 +99,7 @@ M523P40
         parts.append(f"G0X{round3(x0)}Y{round3(y0)}")
         
         for x, y in fooPath[1:]:
-            parts.append(f"G1X{round3(x)}Y{round3(y)}S{power*10.0}F{speed*60.0}")
+            parts.append(f"G1X{round3(x)}Y{round3(y)}S{power*10.0}F{speed}") # power is in %*10
 
     parts.append("")
 

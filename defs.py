@@ -29,7 +29,7 @@ LASER_Y_MIN = 43
 
 LASER_HEIGHT = 0.0 # mm
 LASER_POWER = 80.0 # %
-LASER_SPEED = 80.0 # mm/s
+LASER_SPEED = 5000.0 # mm/s
 
 if BOXSIZE == '100mmSquare':
     # MAX_DIMS = [1000, 1000]
