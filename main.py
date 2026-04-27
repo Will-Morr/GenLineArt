@@ -11,6 +11,8 @@ import cv2
 import argparse
 import matplotlib.pyplot as plt
 
+import pickle as pkl
+
 from funcs import *
 from defs import *
 import F1_ultra_driver as f1 
@@ -22,6 +24,7 @@ if __name__ == '__main__':
     parser.add_argument("-i", "--init", action="store_true", help="Init stuff")
     parser.add_argument("-b", "--box", action="store_true", help="Run boxes")
     parser.add_argument("-p", "--points", action="store_true", help="Run pointilism")
+    parser.add_argument("-x", "--pixels", action="store_true", help="Run pixelation")
     parser.add_argument("--photo", action="store_true", help="Take Photo")
     parser.add_argument("-r", "--run", type=str, help="Run lines")
 # 
@@ -216,6 +219,8 @@ if __name__ == '__main__':
         rawImg = np.array(adjustImg, dtype=np.uint8)
         rawImg[whitePts] = 255
         Image.fromarray(rawImg, mode='L').save(filePath + '/img_grey.png')
+        
+        pkl.dump(rawImg, open(filePath+'/rawImg.pkl', 'wb'))
 
         # Plot image edge selection distribution
         plt.cla()
@@ -223,6 +228,19 @@ if __name__ == '__main__':
         plt.hist(shadePts[shadePts < 255], bins=256)
         plt.title("Distribution of shade in final greyscale image")
         plt.savefig(filePath + '/plt_shadeDist.png')
+
+    else:
+        inImg = Image.open(filePath + '/input.png').convert('RGB')
+        # Resize image
+        origImSize = inImg.size
+        if MAX_DIMS[0] / origImSize[0] > MAX_DIMS[1] / origImSize[1]:
+            MAX_DIMS[1] = int(origImSize[1] * MAX_DIMS[0] / origImSize[0])
+            # inImg.resize((MAX_DIMS[0], ), Image.Resampling.HAMMING)
+        else:
+            MAX_DIMS[0] = int(origImSize[0] * MAX_DIMS[1] / origImSize[1])
+        inImg = inImg.resize(MAX_DIMS, Image.Resampling.HAMMING)
+
+        rawImg = pkl.load(open(filePath+'/rawImg.pkl', 'rb'))
 
     if args.box:
         outLines = squareRecreation(rawImg, sobelHorz, sobelVert, divMode='MIDPOINT')
@@ -306,6 +324,9 @@ if __name__ == '__main__':
         # exportLines(pointLines, filePath+'/tanConns', inImg, MM_PER_PIX)
         # exportLines(pointLines, 'proc/currLineArt', inImg, MM_PER_PIX)
 
+    if args.pixels:
+        pixelationLines = pixelation(rawImg, PIXEL_SIZE_MM, MM_PER_PIX, PIXEL_OFFSETS)
+        exportLines(pixelationLines, filePath+'/out_pixels', inImg, MM_PER_PIX)
 
     if args.run != None:
         filename = args.run

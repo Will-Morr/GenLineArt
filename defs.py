@@ -50,6 +50,8 @@ elif BOXSIZE == 'MaxSize':
     MM_PER_PIX = 0.2 # 100mm square
 
 
+LASER_HEIGHT = 0.0
+
 # # Fiber laser params
 # LASER_HEIGHT = 0.0 # mm
 # LASER_POWER = 100.0 # %
@@ -71,6 +73,10 @@ SOBEL_MULT = 100.0
 
 # Box Nest Defs
 OUTLINE_OFFSET = 5 # Offset of outline of box in pix
+
+# Pixelation Defs
+PIXEL_SIZE_MM = 3
+PIXEL_OFFSETS = 2
 
 # MAX_DIMS = [500, 400]
 # MAX_DIMS = [100, 150]

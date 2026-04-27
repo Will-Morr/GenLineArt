@@ -331,6 +331,75 @@ def squareRecreation(imgArr, sobelHorz, sobelVert, offset = 2.0, divMode="MIDPOI
 
     return convertToPairs(outputLines)
 
+def convert_image_to_pixels(imgArr, xPixelCount, yPixelCount, xPixelSize, yPixelSize, line_width):
+    outputLines = []
+    for xPix in range(xPixelCount):
+        for yPix in range(yPixelCount):
+            xMin = int(np.floor(xPix*xPixelSize))
+            yMin = int(np.floor(yPix*yPixelSize))
+            xMax = int(np.ceil((xPix+1)*xPixelSize))
+            yMax = int(np.ceil((yPix+1)*yPixelSize))
+
+            imgSubset = imgArr[xMin:xMax, yMin:yMax]
+            pixel_value = 1.0-np.double(np.average(imgSubset))/255.0
+
+            pixel_value *= 0.9
+
+            if pixel_value < 0.001:
+                # Do not draw very small squares
+                continue
+
+            # Calculate center and radius of lines
+            xCenter = xPixelSize*(np.double(xPix) + 0.5)
+            yCenter = yPixelSize*(np.double(yPix) + 0.5)
+            xRad = pixel_value*(xPixelSize-line_width)/2.0
+            yRad = pixel_value*(yPixelSize-line_width)/2.0
+
+            # Save output lines
+            x0 = xCenter - xRad
+            y0 = yCenter - yRad
+            x1 = xCenter + xRad
+            y1 = yCenter + yRad
+            outputLines.append([x0, y0, x0, y1])
+            outputLines.append([x1, y0, x1, y1])
+            outputLines.append([x0, y0, x1, y0])
+            outputLines.append([x0, y1, x1, y1])
+    return outputLines
+
+def pixelation(imgArr, pixel_size_mm, MM_PER_PIX, PIXEL_OFFSETS, line_width=0.36496350364963503):
+    iW, iH = imgArr.shape
+
+    xPixelCount = round(iW/(pixel_size_mm/MM_PER_PIX))
+    yPixelCount = round(iH/(pixel_size_mm/MM_PER_PIX))
+
+    xPixelSize = np.double(iW)/xPixelCount
+    yPixelSize = np.double(iH)/yPixelCount
+
+    outputLines = []
+
+    for xOff in range(PIXEL_OFFSETS):
+        xOffset = xPixelSize*xOff/PIXEL_OFFSETS
+        xPixelCountTmp = xPixelCount
+        if xOff > 0: xPixelCountTmp -= 1
+        for yOff in range(PIXEL_OFFSETS):
+            # No parallel lines
+            if xOff + yOff % 2 == 1:
+                continue
+
+            # if xOff + yOff >0: continue
+
+            yOffset = yPixelSize*yOff/PIXEL_OFFSETS
+            yPixelCountTmp = yPixelCount
+            if yOff > 0: yPixelCountTmp -= 1
+            
+            new_lines = convert_image_to_pixels(imgArr[int(xOffset):, int(yOffset):], xPixelCountTmp, yPixelCountTmp, xPixelSize, yPixelSize, line_width)
+            new_lines = np.array(new_lines)
+            new_lines[:, (0,2)] += xOffset
+            new_lines[:, (1,3)] += yOffset
+
+            outputLines += list(new_lines)
+
+    return(convertToPairs(outputLines))
 
 def exportLines(inputLines, outputLabel, inImg, MM_PER_PIX, imgScale=2, line_width=0.36496350364963503):
     print(inImg.size)

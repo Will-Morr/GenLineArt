@@ -6,14 +6,7 @@ import tarfile
 import io
 from PIL import Image
 
-header = """# date=2025_01_30_19_01_47
-# version=2.4.27
-# algorithmVersion=1.16.7
-# gc={"size":{"w":220,"h":220}}
-# gc={"offset":{"x":0,"y":0}}
-# gc={"start":{"x":0,"y":0.0000}}
-# gc={"keys":["x","y"],"rm":1}
-# timeConfig=
+header = """
 G90
 G0 F3000
 G4M1
